@@ -25,7 +25,7 @@ export default function NotFound() {
 
         {/* Description */}
         <p className="text-sm text-muted mb-8 max-w-sm leading-relaxed">
-          The bottle you are looking for has been moved, finished, or is temporarily out of reach. Let's return to the collection.
+          The bottle you are looking for has been moved, finished, or is temporarily out of reach. Let&apos;s return to the collection.
         </p>
 
         {/* Action Button */}

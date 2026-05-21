@@ -53,7 +53,7 @@ Return ONLY the raw JSON object, without markdown formatting or code blocks.`;
         if (parsed.error && parsed.error.message) {
           errMsg = parsed.error.message;
         }
-      } catch (e) {
+      } catch {
         // ignore JSON parse error
       }
       return NextResponse.json(
@@ -71,7 +71,7 @@ Return ONLY the raw JSON object, without markdown formatting or code blocks.`;
     try {
       const parsedData = JSON.parse(cleanedText);
       return NextResponse.json(parsedData);
-    } catch (parseError: unknown) {
+    } catch {
       console.error('Failed to parse Gemini response as JSON:', cleanedText);
       return NextResponse.json(
         { error: 'Failed to parse AI response' },

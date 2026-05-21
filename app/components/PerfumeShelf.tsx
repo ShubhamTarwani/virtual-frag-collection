@@ -1,8 +1,9 @@
 "use client"
 
-import React, { useEffect, useState, useCallback } from 'react'
+import React, { useEffect, useState } from 'react'
 import { createClient, type User } from '@supabase/supabase-js'
 import { motion } from 'framer-motion'
+import imageCompression from 'browser-image-compression'
 import MasonryGrid from './MasonryGrid'
 import DetailDrawer from './DetailDrawer'
 import { samplePerfumes } from './sampleData'
@@ -183,8 +184,8 @@ export default function PerfumeShelf() {
   const [authError, setAuthError] = useState('')
   const [viewMode, setViewMode] = useState<'Categorized' | 'Master Wall' | 'Masonry'>('Masonry')
   const [isSorting, setIsSorting] = useState(false)
+  const [isAutofilling, setIsAutofilling] = useState(false)
 
-  const [dynamicSortOrder, setDynamicSortOrder] = useState<string[]>([])
   const [selectedPerfume, setSelectedPerfume] = useState<Perfume | null>(null)
   const [editId, setEditId] = useState<string | null>(null)
   const [uploading, setUploading] = useState(false)
@@ -197,14 +198,21 @@ export default function PerfumeShelf() {
     const file = e.target.files[0]
     setUploading(true)
     try {
-      const fileExt = file.name.split('.').pop()
+      const options = {
+        maxSizeMB: 1,
+        maxWidthOrHeight: 1920,
+        useWebWorker: true,
+      }
+      const compressedFile = await imageCompression(file, options)
+
+      const fileExt = file.name.split('.').pop() || 'jpg'
       // eslint-disable-next-line react-hooks/purity
       const fileName = `${Date.now().toString(36)}_${Math.floor(Math.random() * 1000)}.${fileExt}`
       const filePath = `bottles/${fileName}`
 
       const { error: uploadError } = await supabase.storage
         .from('perfumes')
-        .upload(filePath, file, {
+        .upload(filePath, compressedFile, {
           cacheControl: '3600',
           upsert: false
         })
@@ -226,6 +234,47 @@ export default function PerfumeShelf() {
       alert(`Upload failed: ${errorMessage}`)
     } finally {
       setUploading(false)
+    }
+  }
+
+  const handleAutofill = async (e: React.MouseEvent) => {
+    e.preventDefault()
+    if (!formValues.name || !formValues.brand) {
+      alert("Please enter both Name and Brand before auto-fetching.")
+      return
+    }
+    
+    setIsAutofilling(true)
+    try {
+      const res = await fetch('/api/autofill', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: formValues.name, brand: formValues.brand })
+      })
+      
+      const data = await res.json()
+      
+      if (!res.ok) {
+        throw new Error(data.error || 'Failed to auto-fetch details')
+      }
+      
+      setFormValues(prev => ({
+        ...prev,
+        category: data.category || prev.category,
+        occasion: data.occasion || prev.occasion,
+        notes: data.notes || prev.notes,
+        concentration: data.concentration || prev.concentration,
+        rating: data.rating ? String(data.rating) : prev.rating,
+        longevity_hours: data.longevity_hours ? String(data.longevity_hours) : prev.longevity_hours,
+        ideal_season: data.ideal_season || prev.ideal_season
+      }))
+      
+    } catch (err: unknown) {
+      console.error(err)
+      const errorMessage = err instanceof Error ? err.message : 'An error occurred during auto-fetch'
+      alert(errorMessage)
+    } finally {
+      setIsAutofilling(false)
     }
   }
 
@@ -508,6 +557,26 @@ export default function PerfumeShelf() {
                         className="mt-1 w-full rounded-2xl border border-border-light bg-surface px-3 py-2 text-sm outline-none focus:border-accent"
                       />
                     </label>
+                    <div className="mt-2 mb-2 flex justify-end">
+                      <button
+                        type="button"
+                        onClick={handleAutofill}
+                        disabled={isAutofilling || !formValues.name || !formValues.brand}
+                        className="text-xs flex items-center gap-2 rounded-full border border-accent/30 bg-accent/10 px-4 py-2 text-accent transition-colors hover:bg-accent/20 disabled:opacity-50"
+                      >
+                        {isAutofilling ? (
+                          <>
+                            <svg className="animate-spin h-3 w-3 text-accent" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path>
+                            </svg>
+                            Fetching...
+                          </>
+                        ) : (
+                          '✨ Auto-fetch Details'
+                        )}
+                      </button>
+                    </div>
                     <label className="text-sm text-foreground">
                       Category
                       <input

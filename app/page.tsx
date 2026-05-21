@@ -1,12 +1,15 @@
 "use client"
 
 import PerfumeShelf from "./components/PerfumeShelf"
+import ThemeSwitcher from "./components/ThemeSwitcher"
 
 import { motion } from "framer-motion"
 
 export default function Home() {
   return (
-    <div className="flex flex-col flex-1 bg-transparent font-sans">
+    <div className="flex flex-col flex-1 bg-transparent font-sans relative">
+      <ThemeSwitcher />
+      
       {/* Hero header */}
       <motion.header 
         initial={{ opacity: 0, y: -20 }}
