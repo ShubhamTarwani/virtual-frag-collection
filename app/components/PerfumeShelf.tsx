@@ -278,10 +278,10 @@ export default function PerfumeShelf() {
     }
   }
 
-  const fetchPerfumes = async () => {
+  const fetchPerfumes = async (userId: string) => {
     setLoading(true)
     try {
-      const { data, error } = await supabase.from('perfumes').select('*').order('shelf_row', { ascending: true })
+      const { data, error } = await supabase.from('perfumes').select('*').eq('user_id', userId).order('shelf_row', { ascending: true })
       if (error) {
         console.error('Supabase fetch error:', error)
         setPerfumes(samplePerfumes)
@@ -301,14 +301,16 @@ export default function PerfumeShelf() {
     let mounted = true
 
     const initialize = async () => {
-      await fetchPerfumes()
       try {
         const { data, error } = await supabase.auth.getSession()
-        if (!error && mounted && data.session?.user) {
-          setUser(data.session.user)
+        const currentUser = data?.session?.user || null
+        if (!error && mounted && currentUser) {
+          setUser(currentUser)
         }
+        await fetchPerfumes(currentUser?.id || '1ff55572-765d-4799-992d-7e094e5cd770')
       } catch (err) {
         console.error('Supabase auth session error:', err)
+        await fetchPerfumes('1ff55572-765d-4799-992d-7e094e5cd770')
       }
     }
 
@@ -405,6 +407,10 @@ export default function PerfumeShelf() {
     if (formValues.longevity_hours) payload.longevity_hours = Number(formValues.longevity_hours)
     if (formValues.ideal_season) payload.ideal_season = formValues.ideal_season
 
+    if (!editId && user) {
+      payload.user_id = user.id
+    }
+
     const action = editId
       ? supabase.from('perfumes').update(payload).eq('id', editId)
       : supabase.from('perfumes').insert([payload])
@@ -415,7 +421,7 @@ export default function PerfumeShelf() {
       return
     }
 
-    await fetchPerfumes()
+    await fetchPerfumes(user?.id || '1ff55572-765d-4799-992d-7e094e5cd770')
     resetForm()
   }
 
@@ -429,7 +435,7 @@ export default function PerfumeShelf() {
     if (editId === id) {
       resetForm()
     }
-    await fetchPerfumes()
+    await fetchPerfumes(user?.id || '1ff55572-765d-4799-992d-7e094e5cd770')
   }
 
   const withDerived = perfumes.map((p) => ({
@@ -471,11 +477,11 @@ export default function PerfumeShelf() {
       <section className="rounded-3xl border border-border bg-surface/90 p-6 shadow-sm">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-4">
           <div>
-            <h2 className="text-lg font-semibold">Admin access</h2>
-            <p className="text-sm text-muted">Anyone can browse the perfume shelf. Press the button to open the login panel and unlock editing.</p>
+            <h2 className="text-lg font-semibold">Manage your collection</h2>
+            <p className="text-sm text-muted">Sign in to edit your fragrance shelf, add new bottles, and organize your collection.</p>
           </div>
           <button onClick={() => setAdminOpen((open) => !open)} className="rounded-2xl bg-accent px-4 py-2 text-sm text-background transition hover:bg-surface-hover">
-            {adminOpen ? 'Hide admin panel' : user ? 'Show admin controls' : 'Open login'}
+            {adminOpen ? 'Hide collection manager' : user ? 'Manage collection' : 'Open login'}
           </button>
         </div>
 

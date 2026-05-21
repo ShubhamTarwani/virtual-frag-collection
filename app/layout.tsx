@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono, Playfair_Display } from "next/font/google";
 import "./globals.css";
+import NavBar from "./components/NavBar";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -18,8 +19,8 @@ const playfair = Playfair_Display({
 });
 
 export const metadata: Metadata = {
-  title: "Virtual Fragrance Shelf — My Perfume Collection",
-  description: "A curated display of my personal fragrance collection. Browse by type, occasion, scent profile, and notes.",
+  title: "Virtual Fragrance Shelf — Community",
+  description: "A social platform for fragrance collectors. Browse, share, and discover perfume collections.",
 };
 
 export default function RootLayout({
@@ -32,7 +33,11 @@ export default function RootLayout({
       lang="en"
       className={`${geistSans.variable} ${geistMono.variable} ${playfair.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="min-h-full flex flex-col">
+        <NavBar />
+        {children}
+      </body>
     </html>
   );
 }
+

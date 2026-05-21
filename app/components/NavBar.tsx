@@ -1,0 +1,68 @@
+import Link from 'next/link'
+import { getCurrentProfile } from '@/lib/supabase/queries'
+import { hasNewNotifications } from '@/lib/supabase/social-queries'
+import NotificationDot from './NotificationDot'
+
+export default async function NavBar() {
+  const profile = await getCurrentProfile()
+  const hasNew = profile ? await hasNewNotifications() : false
+
+  return (
+    <nav className="sticky top-0 z-50 border-b border-border bg-background/80 backdrop-blur-md">
+      <div className="mx-auto max-w-6xl flex items-center justify-between px-6 h-14">
+        {/* Logo */}
+        <Link href="/" className="text-sm font-bold tracking-tight text-foreground font-serif hover:text-accent transition-colors">
+          Fragrance Shelf
+        </Link>
+
+        {/* Nav links */}
+        <div className="flex items-center gap-1">
+          <Link
+            href="/discover"
+            className="px-3 py-1.5 rounded-full text-sm text-muted hover:text-foreground hover:bg-surface-hover transition-colors"
+          >
+            Discover
+          </Link>
+
+          {profile ? (
+            <>
+              <Link
+                href="/feed"
+                className="px-3 py-1.5 rounded-full text-sm text-muted hover:text-foreground hover:bg-surface-hover transition-colors"
+              >
+                Feed
+              </Link>
+
+              <NotificationDot hasNew={hasNew} />
+
+              <Link
+                href={`/u/${profile.username}`}
+                className="ml-1 flex items-center gap-2 px-3 py-1.5 rounded-full text-sm text-muted hover:text-foreground hover:bg-surface-hover transition-colors"
+              >
+                {profile.avatar_url ? (
+                  <img
+                    src={profile.avatar_url}
+                    alt=""
+                    className="h-6 w-6 rounded-full object-cover border border-border-light"
+                  />
+                ) : (
+                  <div className="h-6 w-6 rounded-full bg-accent/20 border border-accent/30 flex items-center justify-center text-xs font-bold text-accent">
+                    {(profile.display_name || profile.username)[0].toUpperCase()}
+                  </div>
+                )}
+                <span className="hidden sm:inline">{profile.display_name || profile.username}</span>
+              </Link>
+            </>
+          ) : (
+            <Link
+              href="/login"
+              className="ml-2 rounded-full bg-accent px-4 py-1.5 text-sm font-medium text-background transition hover:opacity-90"
+            >
+              Sign In
+            </Link>
+          )}
+        </div>
+      </div>
+    </nav>
+  )
+}
