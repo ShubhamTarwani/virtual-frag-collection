@@ -1,14 +1,18 @@
 "use client"
 
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState, useCallback } from 'react'
 import { createClient, type User } from '@supabase/supabase-js'
+import { motion } from 'framer-motion'
+import MasonryGrid from './MasonryGrid'
+import DetailDrawer from './DetailDrawer'
+import { samplePerfumes } from './sampleData'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL || '',
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || ''
 )
 
-type Perfume = {
+export type Perfume = {
   id: string
   name?: string
   brand?: string
@@ -18,6 +22,9 @@ type Perfume = {
   shelf_row?: number
   occasion?: string
   notes?: string
+  rating?: number
+  longevity_hours?: number
+  ideal_season?: string
   derivedType?: string
   derivedOccasion?: string
   derivedSmell?: string
@@ -174,17 +181,15 @@ export default function PerfumeShelf() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [authError, setAuthError] = useState('')
+  const [viewMode, setViewMode] = useState<'Categorized' | 'Master Wall' | 'Masonry'>('Masonry')
+  const [isSorting, setIsSorting] = useState(false)
+
+  const [dynamicSortOrder, setDynamicSortOrder] = useState<string[]>([])
+  const [selectedPerfume, setSelectedPerfume] = useState<Perfume | null>(null)
   const [editId, setEditId] = useState<string | null>(null)
   const [uploading, setUploading] = useState(false)
   const [formValues, setFormValues] = useState({
-    name: '',
-    brand: '',
-    category: '',
-    concentration: '',
-    image_url: '',
-    shelf_row: '0',
-    occasion: '',
-    notes: '',
+    name: '', brand: '', category: '', concentration: '', image_url: '', shelf_row: '0', occasion: '', notes: '', rating: '', longevity_hours: '', ideal_season: ''
   })
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -193,7 +198,8 @@ export default function PerfumeShelf() {
     setUploading(true)
     try {
       const fileExt = file.name.split('.').pop()
-      const fileName = `${Math.random().toString(36).substring(2, 15)}_${Date.now()}.${fileExt}`
+      // eslint-disable-next-line react-hooks/purity
+      const fileName = `${Date.now().toString(36)}_${Math.floor(Math.random() * 1000)}.${fileExt}`
       const filePath = `bottles/${fileName}`
 
       const { error: uploadError } = await supabase.storage
@@ -214,9 +220,10 @@ export default function PerfumeShelf() {
       if (data?.publicUrl) {
         setFormField('image_url', data.publicUrl)
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Error uploading image:', err)
-      alert(`Upload failed: ${err.message || err}`)
+      const errorMessage = err instanceof Error ? err.message : String(err)
+      alert(`Upload failed: ${errorMessage}`)
     } finally {
       setUploading(false)
     }
@@ -228,13 +235,14 @@ export default function PerfumeShelf() {
       const { data, error } = await supabase.from('perfumes').select('*').order('shelf_row', { ascending: true })
       if (error) {
         console.error('Supabase fetch error:', error)
-        setPerfumes([])
+        setPerfumes(samplePerfumes)
       } else {
-        setPerfumes((data as Perfume[]) || [])
+        const fetched = (data as Perfume[]) || []
+        setPerfumes(fetched.length > 0 ? fetched : samplePerfumes)
       }
     } catch (err) {
       console.error('Unexpected fetch error:', err)
-      setPerfumes([])
+      setPerfumes(samplePerfumes)
     } finally {
       setLoading(false)
     }
@@ -288,6 +296,9 @@ export default function PerfumeShelf() {
       shelf_row: '0',
       occasion: '',
       notes: '',
+      rating: '',
+      longevity_hours: '',
+      ideal_season: '',
     })
   }
 
@@ -296,6 +307,7 @@ export default function PerfumeShelf() {
   }
 
   const startEditing = (perfume: Perfume) => {
+    setAdminOpen(true)
     setEditId(perfume.id)
     setFormValues({
       name: perfume.name || '',
@@ -306,6 +318,9 @@ export default function PerfumeShelf() {
       shelf_row: String(perfume.shelf_row ?? 0),
       occasion: perfume.occasion || '',
       notes: perfume.notes || '',
+      rating: perfume.rating != null ? String(perfume.rating) : '',
+      longevity_hours: perfume.longevity_hours != null ? String(perfume.longevity_hours) : '',
+      ideal_season: perfume.ideal_season || '',
     })
   }
 
@@ -320,11 +335,14 @@ export default function PerfumeShelf() {
       shelf_row: '0',
       occasion: '',
       notes: '',
+      rating: '',
+      longevity_hours: '',
+      ideal_season: '',
     })
   }
 
   const savePerfume = async () => {
-    const payload = {
+    const payload: Record<string, unknown> = {
       name: formValues.name,
       brand: formValues.brand,
       category: formValues.category,
@@ -334,6 +352,9 @@ export default function PerfumeShelf() {
       occasion: formValues.occasion,
       notes: formValues.notes,
     }
+    if (formValues.rating) payload.rating = Number(formValues.rating)
+    if (formValues.longevity_hours) payload.longevity_hours = Number(formValues.longevity_hours)
+    if (formValues.ideal_season) payload.ideal_season = formValues.ideal_season
 
     const action = editId
       ? supabase.from('perfumes').update(payload).eq('id', editId)
@@ -398,68 +419,68 @@ export default function PerfumeShelf() {
 
   return (
     <div className="w-full space-y-8">
-      <section className="rounded-3xl border border-zinc-200 bg-white/90 p-6 shadow-sm">
+      <section className="rounded-3xl border border-border bg-surface/90 p-6 shadow-sm">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-4">
           <div>
             <h2 className="text-lg font-semibold">Admin access</h2>
-            <p className="text-sm text-zinc-500">Anyone can browse the perfume shelf. Press the button to open the login panel and unlock editing.</p>
+            <p className="text-sm text-muted">Anyone can browse the perfume shelf. Press the button to open the login panel and unlock editing.</p>
           </div>
-          <button onClick={() => setAdminOpen((open) => !open)} className="rounded-2xl bg-black px-4 py-2 text-sm text-white transition hover:bg-zinc-800">
+          <button onClick={() => setAdminOpen((open) => !open)} className="rounded-2xl bg-accent px-4 py-2 text-sm text-background transition hover:bg-surface-hover">
             {adminOpen ? 'Hide admin panel' : user ? 'Show admin controls' : 'Open login'}
           </button>
         </div>
 
-        {adminOpen || user ? (
+        {adminOpen ? (
           <div className="space-y-4">
             {!user ? (
               <div className="grid gap-4 sm:grid-cols-[1fr_auto] items-end">
                 <div className="grid gap-3">
-                  <label className="text-sm text-zinc-700">
+                  <label className="text-sm text-foreground">
                     Email
                     <input
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
-                      className="mt-1 w-full rounded-2xl border border-zinc-300 bg-white px-3 py-2 text-sm outline-none focus:border-black"
+                      className="mt-1 w-full rounded-2xl border border-border-light bg-surface px-3 py-2 text-sm outline-none focus:border-accent"
                     />
                   </label>
-                  <label className="text-sm text-zinc-700">
+                  <label className="text-sm text-foreground">
                     Password
                     <input
                       type="password"
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
-                      className="mt-1 w-full rounded-2xl border border-zinc-300 bg-white px-3 py-2 text-sm outline-none focus:border-black"
+                      className="mt-1 w-full rounded-2xl border border-border-light bg-surface px-3 py-2 text-sm outline-none focus:border-accent"
                     />
                   </label>
                 </div>
                 <div className="flex flex-col items-start gap-3 sm:items-end">
                   <button
                     onClick={handleSignIn}
-                    className="rounded-2xl bg-black px-5 py-2 text-sm text-white transition hover:bg-zinc-800"
+                    className="rounded-2xl bg-accent px-5 py-2 text-sm text-background transition hover:bg-surface-hover"
                   >
                     Sign in
                   </button>
-                  {authError ? <div className="text-sm text-red-500">{authError}</div> : null}
+                  {authError ? <div className="text-sm text-danger">{authError}</div> : null}
                 </div>
               </div>
             ) : (
-              <div className="flex flex-col gap-4 rounded-2xl border border-zinc-200 bg-zinc-50 p-4 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex flex-col gap-4 rounded-2xl border border-border bg-surface p-4 sm:flex-row sm:items-center sm:justify-between">
                 <div>
-                  <p className="text-sm text-zinc-600">
-                    Signed in as <span className="font-semibold text-zinc-900">{user.email}</span>
+                  <p className="text-sm text-muted">
+                    Signed in as <span className="font-semibold text-foreground">{user.email}</span>
                   </p>
-                  <p className="text-sm text-zinc-500">Editing is protected. Public visitors can still browse the shelf below.</p>
+                  <p className="text-sm text-muted">Editing is protected. Public visitors can still browse the shelf below.</p>
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
                   <button
                     onClick={resetForm}
-                    className="rounded-2xl border border-zinc-300 bg-white px-4 py-2 text-sm text-zinc-800 transition hover:bg-zinc-100"
+                    className="rounded-2xl border border-border-light bg-surface px-4 py-2 text-sm text-foreground transition hover:bg-surface-hover"
                   >
                     New bottle
                   </button>
                   <button
                     onClick={handleSignOut}
-                    className="rounded-2xl bg-black px-4 py-2 text-sm text-white transition hover:bg-zinc-800"
+                    className="rounded-2xl bg-accent px-4 py-2 text-sm text-background transition hover:bg-surface-hover"
                   >
                     Sign out
                   </button>
@@ -469,56 +490,56 @@ export default function PerfumeShelf() {
 
             {user ? (
               <div className="mt-6 grid gap-4 md:grid-cols-[1fr_1fr]">
-                <div className="space-y-3 rounded-2xl border border-zinc-200 bg-white p-4">
+                <div className="space-y-3 rounded-2xl border border-border bg-surface p-4">
                   <div className="grid gap-3">
-                    <label className="text-sm text-zinc-700">
+                    <label className="text-sm text-foreground">
                       Name
                       <input
                         value={formValues.name}
                         onChange={(e) => setFormField('name', e.target.value)}
-                        className="mt-1 w-full rounded-2xl border border-zinc-300 bg-white px-3 py-2 text-sm outline-none focus:border-black"
+                        className="mt-1 w-full rounded-2xl border border-border-light bg-surface px-3 py-2 text-sm outline-none focus:border-accent"
                       />
                     </label>
-                    <label className="text-sm text-zinc-700">
+                    <label className="text-sm text-foreground">
                       Brand
                       <input
                         value={formValues.brand}
                         onChange={(e) => setFormField('brand', e.target.value)}
-                        className="mt-1 w-full rounded-2xl border border-zinc-300 bg-white px-3 py-2 text-sm outline-none focus:border-black"
+                        className="mt-1 w-full rounded-2xl border border-border-light bg-surface px-3 py-2 text-sm outline-none focus:border-accent"
                       />
                     </label>
-                    <label className="text-sm text-zinc-700">
+                    <label className="text-sm text-foreground">
                       Category
                       <input
                         value={formValues.category}
                         onChange={(e) => setFormField('category', e.target.value)}
-                        className="mt-1 w-full rounded-2xl border border-zinc-300 bg-white px-3 py-2 text-sm outline-none focus:border-black"
+                        className="mt-1 w-full rounded-2xl border border-border-light bg-surface px-3 py-2 text-sm outline-none focus:border-accent"
                       />
                     </label>
-                    <label className="text-sm text-zinc-700">
+                    <label className="text-sm text-foreground">
                       Concentration
                       <input
                         value={formValues.concentration}
                         onChange={(e) => setFormField('concentration', e.target.value)}
-                        className="mt-1 w-full rounded-2xl border border-zinc-300 bg-white px-3 py-2 text-sm outline-none focus:border-black"
+                        className="mt-1 w-full rounded-2xl border border-border-light bg-surface px-3 py-2 text-sm outline-none focus:border-accent"
                       />
                     </label>
                   </div>
                 </div>
-                <div className="space-y-3 rounded-2xl border border-zinc-200 bg-white p-4">
-                  <label className="text-sm text-zinc-700">
+                <div className="space-y-3 rounded-2xl border border-border bg-surface p-4">
+                  <label className="text-sm text-foreground">
                     Image URL
                     <input
                       value={formValues.image_url}
                       onChange={(e) => setFormField('image_url', e.target.value)}
-                      className="mt-1 w-full rounded-2xl border border-zinc-300 bg-white px-3 py-2 text-sm outline-none focus:border-black"
+                      className="mt-1 w-full rounded-2xl border border-border-light bg-surface px-3 py-2 text-sm outline-none focus:border-accent"
                     />
                   </label>
                   <div className="mt-2">
-                    <label className="block text-xs font-medium text-zinc-500 mb-1">
+                    <label className="block text-xs font-medium text-muted mb-1">
                       Or Upload Photo
                     </label>
-                    <div className="relative flex items-center justify-center border border-dashed border-zinc-300 rounded-2xl p-4 bg-zinc-50 hover:bg-zinc-100 transition cursor-pointer">
+                    <div className="relative flex items-center justify-center border border-dashed border-border-light rounded-2xl p-4 bg-surface hover:bg-surface-hover transition cursor-pointer">
                       <input
                         type="file"
                         accept="image/*"
@@ -526,10 +547,10 @@ export default function PerfumeShelf() {
                         disabled={uploading}
                         className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                       />
-                      <div className="text-center text-xs text-zinc-600">
+                      <div className="text-center text-xs text-muted">
                         {uploading ? (
-                          <span className="flex items-center gap-2 text-zinc-500">
-                            <svg className="animate-spin h-4 w-4 text-zinc-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                          <span className="flex items-center gap-2 text-muted">
+                            <svg className="animate-spin h-4 w-4 text-muted" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                               <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                               <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path>
                             </svg>
@@ -543,41 +564,41 @@ export default function PerfumeShelf() {
                       </div>
                     </div>
                   </div>
-                  <label className="text-sm text-zinc-700">
+                  <label className="text-sm text-foreground">
                     Shelf row
                     <input
                       value={formValues.shelf_row}
                       onChange={(e) => setFormField('shelf_row', e.target.value)}
-                      className="mt-1 w-full rounded-2xl border border-zinc-300 bg-white px-3 py-2 text-sm outline-none focus:border-black"
+                      className="mt-1 w-full rounded-2xl border border-border-light bg-surface px-3 py-2 text-sm outline-none focus:border-accent"
                     />
                   </label>
-                  <label className="text-sm text-zinc-700">
+                  <label className="text-sm text-foreground">
                     Occasion
                     <input
                       value={formValues.occasion}
                       onChange={(e) => setFormField('occasion', e.target.value)}
-                      className="mt-1 w-full rounded-2xl border border-zinc-300 bg-white px-3 py-2 text-sm outline-none focus:border-black"
+                      className="mt-1 w-full rounded-2xl border border-border-light bg-surface px-3 py-2 text-sm outline-none focus:border-accent"
                     />
                   </label>
-                  <label className="text-sm text-zinc-700">
+                  <label className="text-sm text-foreground">
                     Notes
                     <textarea
                       value={formValues.notes}
                       onChange={(e) => setFormField('notes', e.target.value)}
-                      className="mt-1 h-24 w-full rounded-2xl border border-zinc-300 bg-white px-3 py-2 text-sm outline-none focus:border-black"
+                      className="mt-1 h-24 w-full rounded-2xl border border-border-light bg-surface px-3 py-2 text-sm outline-none focus:border-accent"
                     />
                   </label>
                 </div>
                 <div className="md:col-span-2 flex flex-wrap gap-3">
                   <button
                     onClick={savePerfume}
-                    className="rounded-2xl bg-black px-5 py-2 text-sm text-white transition hover:bg-zinc-800"
+                    className="rounded-2xl bg-accent px-5 py-2 text-sm text-background transition hover:bg-surface-hover"
                   >
                     {editId ? 'Update bottle' : 'Add bottle'}
                   </button>
                   <button
                     onClick={resetForm}
-                    className="rounded-2xl border border-zinc-300 bg-white px-5 py-2 text-sm text-zinc-800 transition hover:bg-zinc-100"
+                    className="rounded-2xl border border-border-light bg-surface px-5 py-2 text-sm text-foreground transition hover:bg-surface-hover"
                   >
                     Clear
                   </button>
@@ -597,67 +618,133 @@ export default function PerfumeShelf() {
                 setFilterMode(mode)
                 setActiveFilter('All')
               }}
-              className={`rounded-full px-3 py-1 text-sm transition-colors ${filterMode === mode ? 'bg-black text-white' : 'bg-zinc-100 text-zinc-800'}`}
+              className={`rounded-full px-4 py-1.5 text-sm font-medium transition-colors border ${filterMode === mode ? 'bg-accent border-accent text-background shadow-md' : 'bg-surface border-border-light text-muted hover:border-accent/50 hover:text-foreground'}`}
             >
               {mode}
             </button>
           ))}
         </div>
-        <div className="ml-auto flex items-center gap-3">
-          <label className="text-sm text-zinc-600">Auto-sort</label>
-          <button onClick={() => setAutoSort((s) => !s)} className={`h-8 w-16 rounded-full transition-colors ${autoSort ? 'bg-black text-white' : 'bg-zinc-100 text-zinc-800'}`}>
-            {autoSort ? 'On' : 'Off'}
-          </button>
+        <div className="ml-auto flex items-center gap-6">
+          <div className="flex items-center gap-3">
+            <label className="text-sm font-medium text-muted flex items-center gap-2">
+              Auto-sort
+              {isSorting && (
+                <svg className="animate-spin h-3 w-3 text-accent" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path>
+                </svg>
+              )}
+            </label>
+            <button onClick={() => setAutoSort((s) => !s)} className={`h-8 w-16 rounded-full transition-colors font-medium text-xs ${autoSort ? 'bg-accent text-background' : 'bg-surface border border-border-light text-muted hover:text-foreground'}`}>
+              {autoSort ? 'ON' : 'OFF'}
+            </button>
+          </div>
+          <div className="h-6 w-px bg-border hidden sm:block"></div>
+          <div className="flex items-center gap-1 bg-surface p-1 rounded-full border border-border-light">
+            <button 
+              onClick={() => setViewMode('Masonry')} 
+              className={`px-3 py-1 text-xs font-medium rounded-full transition-colors ${viewMode === 'Masonry' ? 'bg-accent text-background' : 'text-muted hover:text-foreground'}`}
+            >
+              Masonry
+            </button>
+            <button 
+              onClick={() => setViewMode('Categorized')} 
+              className={`px-3 py-1 text-xs font-medium rounded-full transition-colors ${viewMode === 'Categorized' ? 'bg-accent text-background' : 'text-muted hover:text-foreground'}`}
+            >
+              Shelves
+            </button>
+             <button 
+              onClick={() => setViewMode('Master Wall')} 
+              className={`px-3 py-1 text-xs font-medium rounded-full transition-colors ${viewMode === 'Master Wall' ? 'bg-accent text-background' : 'text-muted hover:text-foreground'}`}
+            >
+              Wall
+            </button>
+          </div>
         </div>
       </div>
 
-      <div className="mb-4 flex flex-wrap gap-2">
+      <div className="mb-8 flex flex-wrap gap-2 border-b border-border pb-4">
         {activeOptions.map((option) => (
           <button
             key={option}
             onClick={() => setActiveFilter(option)}
-            className={`rounded-full px-3 py-1 text-sm transition-colors ${activeFilter === option ? 'bg-black text-white' : 'bg-zinc-100 text-zinc-800'}`}
+            className={`relative rounded-full px-4 py-1.5 text-xs font-medium transition-colors ${activeFilter === option ? 'text-accent font-semibold' : 'text-muted hover:text-foreground'}`}
           >
-            {option}
+            {activeFilter === option && (
+              <motion.div
+                layoutId="activeFilterPill"
+                className="absolute inset-0 bg-accent/10 border border-accent/30 rounded-full"
+                initial={false}
+                transition={{ type: "spring", stiffness: 400, damping: 30 }}
+              />
+            )}
+            <span className="relative z-10">{option}</span>
           </button>
         ))}
       </div>
 
+      <div className={`transition-all duration-500 origin-top ${selectedPerfume ? 'main-content-scaled' : 'main-content-wrapper'}`}>
       {loading ? (
-        <div className="py-12 text-center">
-          <div className="inline-flex items-center gap-3 text-sm text-zinc-500">
-            <svg className="h-5 w-5 animate-spin text-zinc-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path>
-            </svg>
-            <span>Loading perfumes…</span>
-          </div>
+        <div className="columns-2 sm:columns-3 lg:columns-4 gap-5">
+          {Array.from({ length: 8 }).map((_, i) => (
+            <div key={i} className="skeleton-card">
+              <div className="skeleton-img" style={{ height: `${200 + (i % 3) * 50}px` }}></div>
+              <div className="p-4 bg-surface/50">
+                <div className="skeleton-text w-3/4"></div>
+                <div className="skeleton-text w-1/2"></div>
+              </div>
+            </div>
+          ))}
         </div>
       ) : filtered.length === 0 ? (
         <div className="py-12 text-center text-sm text-zinc-500">No perfumes match the selected filter.</div>
+      ) : viewMode === 'Masonry' ? (
+        <MasonryGrid perfumes={filtered} onSelect={setSelectedPerfume} />
+      ) : viewMode === 'Master Wall' ? (
+        <div className="master-wall-grid animate-fade-in">
+          {filtered.map(p => (
+            <div key={p.id} className="master-wall-cell group" onClick={() => setSelectedPerfume(p)}>
+              <div className="master-wall-bottle">
+                <img src={p.image_url || '/placeholder-bottle.png'} alt={p.name || p.brand || 'Perfume'} className="h-full object-contain" />
+              </div>
+              <div className="w-full px-2 py-3 mt-1 text-center flex flex-col justify-between flex-1 bg-surface/50 border-t border-border-light/50">
+                <div>
+                  <div className="font-bold text-xs truncate text-foreground">{p.name || 'Unknown'}</div>
+                  <div className="text-muted text-[10px] truncate uppercase tracking-widest mt-0.5">{p.brand || ''}</div>
+                </div>
+                {user ? (
+                  <div className="mt-2 flex flex-wrap justify-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <button onClick={(e) => { e.stopPropagation(); startEditing(p) }} className="rounded bg-surface-hover px-2 py-1 text-[10px] text-foreground hover:text-accent border border-border-light">Edit</button>
+                    <button onClick={(e) => { e.stopPropagation(); deletePerfume(p.id) }} className="rounded bg-danger/10 px-2 py-1 text-[10px] text-danger hover:bg-danger/20 border border-danger/30">Del</button>
+                  </div>
+                ) : null}
+              </div>
+            </div>
+          ))}
+        </div>
       ) : (
         <div className="space-y-8">
           {groupEntries.map(([groupLabel, items]) => (
-            <div key={groupLabel} className="rounded-lg bg-zinc-50/60 p-4 shadow-sm">
-              <div className="mb-2 flex items-center justify-between">
-                <div className="text-sm font-medium text-zinc-600">
-                  {autoSort ? `${filterMode}: ${groupLabel}` : `Shelf ${groupLabel}`} ({items.length})
+            <div key={groupLabel} className="rounded-2xl border border-border bg-surface/50 p-6 shadow-sm animate-fade-in">
+              <div className="mb-4 flex items-center justify-between border-b border-border-light pb-2">
+                <div className="text-sm font-semibold tracking-wider text-accent uppercase">
+                  {autoSort ? `${filterMode}: ${groupLabel}` : `Shelf ${groupLabel}`} <span className="text-muted ml-2">({items.length})</span>
                 </div>
               </div>
-              <div className="flex gap-4 overflow-auto">
+              <div className="flex gap-6 overflow-x-auto pb-4 shelf-row physical-shelf pt-6 px-4">
                 {items.map((p) => (
-                  <div key={p.id} className="w-28 flex-shrink-0">
-                    <div className="relative h-36 w-full overflow-hidden rounded-md bg-white/80 shadow-md hover:translate-y-[-4px] transition-transform">
-                      <img src={p.image_url || '/placeholder-bottle.png'} alt={p.name || p.brand || 'Perfume'} className="h-full w-full object-contain" />
+                  <div key={p.id} className="w-32 flex-shrink-0 group physical-shelf-item cursor-pointer" onClick={() => setSelectedPerfume(p)}>
+                    <div className="relative h-44 w-full overflow-hidden rounded-xl bg-surface-hover/80 shadow-lg transition-all duration-300 group-hover:shadow-[0_8px_30px_rgb(0,0,0,0.12)] border border-border-light group-hover:border-accent">
+                      <img src={p.image_url || '/placeholder-bottle.png'} alt={p.name || p.brand || 'Perfume'} className="h-full w-full object-contain p-2" />
                     </div>
-                    <div className="mt-2 text-xs">
-                      <div className="font-semibold truncate">{p.name || 'Unknown'}</div>
-                      <div className="text-zinc-500 truncate">{p.brand || ''}</div>
-                      <div className="text-zinc-400 text-[11px]">{p.concentration || ''}</div>
+                    <div className="mt-3 text-sm">
+                      <div className="font-bold truncate text-foreground">{p.name || 'Unknown'}</div>
+                      <div className="text-muted truncate">{p.brand || ''}</div>
+                      <div className="text-accent-dark text-xs mt-0.5">{p.concentration || ''}</div>
                       {user ? (
-                        <div className="mt-2 flex flex-wrap gap-2">
-                          <button onClick={() => startEditing(p)} className="rounded-full border border-zinc-300 bg-white px-2 py-1 text-[11px] text-zinc-700 transition hover:bg-zinc-100">Edit</button>
-                          <button onClick={() => deletePerfume(p.id)} className="rounded-full border border-red-300 bg-red-50 px-2 py-1 text-[11px] text-red-700 transition hover:bg-red-100">Delete</button>
+                        <div className="mt-3 flex flex-wrap gap-2">
+                          <button onClick={(e) => { e.stopPropagation(); startEditing(p) }} className="rounded-full border border-border-light bg-surface px-3 py-1 text-xs text-foreground transition hover:border-accent hover:text-accent">Edit</button>
+                          <button onClick={(e) => { e.stopPropagation(); deletePerfume(p.id) }} className="rounded-full border border-danger/30 bg-danger/10 px-3 py-1 text-xs text-danger transition hover:bg-danger/20">Delete</button>
                         </div>
                       ) : null}
                     </div>
@@ -668,6 +755,10 @@ export default function PerfumeShelf() {
           ))}
         </div>
       )}
+      </div>
+
+      {/* Detail Drawer */}
+      <DetailDrawer perfume={selectedPerfume} onClose={() => setSelectedPerfume(null)} />
     </div>
   )
 }
