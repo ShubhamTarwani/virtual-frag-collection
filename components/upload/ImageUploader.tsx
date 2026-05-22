@@ -44,8 +44,8 @@ export default function ImageUploader({
       // 1. Client-side Image Compression
       setCompressing(true)
       const options = {
-        maxSizeMB: 0.3,              // Limit to 300KB max
-        maxWidthOrHeight: 1200,      // Max 1200px width/height
+        maxSizeMB: 0.1,              // Limit to 100KB max
+        maxWidthOrHeight: 800,       // Max 800px width/height
         useWebWorker: true,
         fileType: 'image/webp',      // Output as WebP
       }
