@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { createClient } from '@/utils/supabase/server';
 import cloudinary from '@/lib/cloudinary';
+import { checkRateLimit, rateLimitResponse } from '@/lib/rate-limit';
 
 export async function POST(req: Request) {
   try {
@@ -19,14 +20,23 @@ export async function POST(req: Request) {
     //   return NextResponse.json({ error: 'Unauthorized - Admin access required' }, { status: 403 });
     // }
 
+    const uploadLimit = await checkRateLimit({
+      endpoint: 'upload:hourly',
+      identifier: user.id,
+      maxRequests: 50,
+      windowMinutes: 60
+    });
+
+    if (!uploadLimit.allowed) {
+      return rateLimitResponse(uploadLimit);
+    }
+
     const timestamp = Math.round(Date.now() / 1000);
     const folder = 'perfumes';
 
     const paramsToSign = {
       timestamp,
       folder,
-      allowed_formats: 'jpg,png,webp',
-      max_file_size: 10485760, // 10MB
     };
 
     const apiSecret = process.env.CLOUDINARY_API_SECRET;

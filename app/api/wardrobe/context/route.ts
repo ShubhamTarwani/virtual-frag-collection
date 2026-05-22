@@ -6,6 +6,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
 import { createClient } from '@/utils/supabase/server'
 import { buildAutoContext } from '@/lib/wardrobe/context'
+import { checkRateLimit, rateLimitResponse } from '@/lib/rate-limit'
 
 export async function POST(req: NextRequest) {
   try {
@@ -18,26 +19,16 @@ export async function POST(req: NextRequest) {
     }
 
     // Rate Limiting: Max 20 calls per user per hour
-    const now = new Date()
-    const pad = (n: number) => String(n).padStart(2, '0')
-    const hourKey = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}-${pad(now.getHours())}`
-    
-    const { data: rlData } = await supabase
-      .from('rate_limits')
-      .select('count')
-      .eq('user_id', user.id)
-      .eq('action', 'weather_context')
-      .eq('window_key', hourKey)
-      .maybeSingle()
+    const limit = await checkRateLimit({
+      endpoint: 'weather_context',
+      identifier: user.id,
+      maxRequests: 20,
+      windowMinutes: 60
+    })
 
-    if (rlData && rlData.count >= 20) {
-      return NextResponse.json({ error: 'Rate limit exceeded' }, { status: 429 })
+    if (!limit.allowed) {
+      return rateLimitResponse(limit)
     }
-
-    await supabase.from('rate_limits').upsert(
-      { user_id: user.id, action: 'weather_context', window_key: hourKey, count: (rlData?.count ?? 0) + 1 },
-      { onConflict: 'user_id,action,window_key' }
-    )
 
     let lat: number | null = null
     let lon: number | null = null

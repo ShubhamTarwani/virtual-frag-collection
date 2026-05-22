@@ -1,5 +1,8 @@
 import { NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+import { createClient as createAdminClient } from '@supabase/supabase-js';
+import { cookies } from 'next/headers';
+import { createClient } from '@/utils/supabase/server';
+import { checkRateLimit, rateLimitResponse } from '@/lib/rate-limit';
 
 export async function POST(req: Request) {
   try {
@@ -12,8 +15,35 @@ export async function POST(req: Request) {
       );
     }
 
+    const cookieStore = await cookies();
+    const supabase = createClient(cookieStore);
+    const { data: { user } } = await supabase.auth.getUser();
+
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const adminEmail = process.env.ADMIN_EMAIL;
+    if (adminEmail && user.email !== adminEmail) {
+      return NextResponse.json({ error: 'Forbidden - Admin access required' }, { status: 403 });
+    }
+
+    const autoFillLimit = await checkRateLimit({
+      endpoint: 'admin:autofill:hourly',
+      identifier: user.id,
+      maxRequests: 30,
+      windowMinutes: 60
+    });
+
+    if (!autoFillLimit.allowed) {
+      return NextResponse.json(
+        { error: 'Auto-fill limit reached. Wait before fetching more.' },
+        { status: 429 }
+      );
+    }
+
     // Deliverable 3d: Check master_fragrances first
-    const supabaseAdmin = createClient(
+    const supabaseAdmin = createAdminClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.SUPABASE_SERVICE_ROLE_KEY!
     );

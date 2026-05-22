@@ -12,6 +12,7 @@ import type { UserPicks } from '@/lib/wardrobe/scoring'
 import ContextCard from './ContextCard'
 import GeolocationPrompt from './GeolocationPrompt'
 import PillSelector from './PillSelector'
+import RateLimitBanner from '../ui/RateLimitBanner'
 import type { AutoContext } from '@/lib/wardrobe/context'
 
 const LOADING_MESSAGES = [
@@ -98,7 +99,7 @@ export default function WardrobeInput({ onResult }: Props) {
   const [picks, setPicks] = useState<UserPicks>({})
   const [msgIdx, setMsgIdx] = useState(0)
   const [isPending, startTransition] = useTransition()
-  const [error, setError] = useState<string | null>(null)
+  const [error, setError] = useState<{ message: string; rateLimit?: boolean; resetAt?: string } | null>(null)
   const [refreshKey, setRefreshKey] = useState(0)
 
   const handleGeoResolved = useCallback(async (result: { lat: number; lon: number; label?: string }) => {
@@ -146,7 +147,7 @@ export default function WardrobeInput({ onResult }: Props) {
       const result = await getRecommendation(picks, geo?.lat, geo?.lon)
       clearInterval(interval)
       if ('error' in result) {
-        setError(result.error)
+        setError({ message: result.error, rateLimit: result.rateLimit, resetAt: result.resetAt })
       } else {
         writeCache(cacheKey, result)
         onResult(result)
@@ -181,11 +182,13 @@ export default function WardrobeInput({ onResult }: Props) {
         Skip → just use weather
       </button>
 
-      {error && (
+      {error?.rateLimit ? (
+        <RateLimitBanner message={error.message} resetAt={error.resetAt ? new Date(error.resetAt) : undefined} />
+      ) : error ? (
         <div className="rounded-xl border border-[var(--danger)] bg-red-950/20 text-[var(--danger)] text-sm p-3 mb-4">
-          {error}
+          {error.message}
         </div>
-      )}
+      ) : null}
 
       <AnimatePresence mode="wait">
         {isPending ? (

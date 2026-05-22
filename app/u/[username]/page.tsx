@@ -6,6 +6,7 @@ import { getFollowerCount, getFollowingCount, getFragranceCount, isFollowing, is
 import FollowButton from '@/app/components/FollowButton'
 import LikeButton from '@/app/components/LikeButton'
 import PerfumeShelf from '@/app/components/PerfumeShelf'
+import BioEditor from '@/app/components/BioEditor'
 import { Metadata } from 'next'
 
 export async function generateMetadata({ params }: { params: Promise<{ username: string }> }): Promise<Metadata> {
@@ -89,9 +90,11 @@ export default async function ProfilePage(props: { params: Promise<{ username: s
               />
             </div>
             <p className="text-sm text-muted mt-0.5">@{profile.username}</p>
-            {profile.bio && (
+            {isOwn ? (
+              <BioEditor initialBio={profile.bio} />
+            ) : profile.bio ? (
               <p className="text-sm text-foreground/80 mt-2 max-w-lg">{profile.bio}</p>
-            )}
+            ) : null}
           </div>
         </div>
 

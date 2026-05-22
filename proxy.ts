@@ -1,5 +1,6 @@
 import { type NextRequest, NextResponse } from 'next/server'
 import { createServerClient } from '@supabase/ssr'
+import { checkRateLimit } from '@/lib/rate-limit'
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!
@@ -63,6 +64,32 @@ export async function proxy(request: NextRequest) {
   // Protect onboarding route
   if (pathname === '/onboarding') {
     // Let the page handle auth — the server action will redirect if needed
+  }
+
+  // Rate limit public profile views
+  if (pathname.startsWith('/u/')) {
+    const ip = request.headers.get('x-forwarded-for')?.split(',')[0].trim() || 
+               request.headers.get('x-real-ip') || 
+               'unknown'
+    
+    const limit = await checkRateLimit({
+      endpoint: 'profile_view',
+      identifier: ip,
+      maxRequests: 100,
+      windowMinutes: 60
+    })
+
+    if (!limit.allowed) {
+      return new NextResponse(JSON.stringify({ error: 'Too Many Requests' }), {
+        status: 429,
+        headers: {
+          'Content-Type': 'application/json',
+          'Retry-After': Math.ceil((limit.resetAt.getTime() - Date.now()) / 1000).toString(),
+          'X-RateLimit-Remaining': limit.remaining.toString(),
+          'X-RateLimit-Reset': limit.resetAt.toISOString(),
+        }
+      })
+    }
   }
 
   return supabaseResponse

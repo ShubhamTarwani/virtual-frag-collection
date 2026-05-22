@@ -6,7 +6,30 @@
  * Persists in localStorage (24h TTL).
  */
 import { useState, useEffect } from 'react'
-import { INDIAN_CITIES } from '@/app/api/wardrobe/ip-geo/route'
+
+// Top 20 Indian cities as fallback
+const INDIAN_CITIES = [
+  { name: 'Mumbai', lat: 19.076, lon: 72.877 },
+  { name: 'Delhi', lat: 28.679, lon: 77.069 },
+  { name: 'Bangalore', lat: 12.972, lon: 77.594 },
+  { name: 'Hyderabad', lat: 17.385, lon: 78.487 },
+  { name: 'Chennai', lat: 13.083, lon: 80.271 },
+  { name: 'Kolkata', lat: 22.573, lon: 88.364 },
+  { name: 'Pune', lat: 18.520, lon: 73.856 },
+  { name: 'Ahmedabad', lat: 23.023, lon: 72.572 },
+  { name: 'Jaipur', lat: 26.913, lon: 75.787 },
+  { name: 'Surat', lat: 21.170, lon: 72.831 },
+  { name: 'Lucknow', lat: 26.847, lon: 80.947 },
+  { name: 'Kanpur', lat: 26.449, lon: 80.331 },
+  { name: 'Nagpur', lat: 21.146, lon: 79.089 },
+  { name: 'Patna', lat: 25.594, lon: 85.138 },
+  { name: 'Indore', lat: 22.719, lon: 75.857 },
+  { name: 'Bhopal', lat: 23.259, lon: 77.413 },
+  { name: 'Visakhapatnam', lat: 17.686, lon: 83.218 },
+  { name: 'Chandigarh', lat: 30.741, lon: 76.779 },
+  { name: 'Kochi', lat: 9.932, lon: 76.267 },
+  { name: 'Guwahati', lat: 26.144, lon: 91.736 },
+]
 
 type GeoResult = { lat: number; lon: number; label?: string }
 type Props = {

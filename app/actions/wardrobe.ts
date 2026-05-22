@@ -13,6 +13,7 @@ import { pickFinalRecommendation } from '@/lib/wardrobe/gemini'
 import type { AutoContext } from '@/lib/wardrobe/context'
 import type { Fragrance, WearLog, UserPicks, ScoredBottle } from '@/lib/wardrobe/scoring'
 import type { GeminiOutput } from '@/lib/wardrobe/gemini'
+import { checkRateLimit } from '@/lib/rate-limit'
 
 import { z } from 'zod'
 
@@ -55,63 +56,7 @@ export type RecommendationResult = {
   top5: ScoredBottle[]
 }
 
-// ---------------------------------------------------------------------------
-// Rate limiting (Postgres-backed, no Upstash)
-// ---------------------------------------------------------------------------
-
-async function checkRateLimit(userId: string): Promise<{ allowed: boolean; reason?: string }> {
-  const supabase = createAdminClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-  )
-  const now = new Date()
-
-  const pad = (n: number) => String(n).padStart(2, '0')
-  const dayKey = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`
-  const hourKey = `${dayKey}-${pad(now.getHours())}`
-
-  // Check hourly (10/hour)
-  const { data: hourRow } = await supabase
-    .from('rate_limits')
-    .select('count')
-    .eq('user_id', userId)
-    .eq('action', 'wardrobe_recommend')
-    .eq('window_key', hourKey)
-    .maybeSingle()
-
-  if (hourRow && hourRow.count >= 10) {
-    return { allowed: false, reason: 'Hourly limit reached (10/hour). Try again next hour.' }
-  }
-
-  // Check daily (30/day)
-  const { data: dayRow } = await supabase
-    .from('rate_limits')
-    .select('count')
-    .eq('user_id', userId)
-    .eq('action', 'wardrobe_recommend')
-    .eq('window_key', dayKey)
-    .maybeSingle()
-
-  if (dayRow && dayRow.count >= 30) {
-    return { allowed: false, reason: 'Daily limit reached (30/day). Come back tomorrow!' }
-  }
-
-  // Increment both windows
-  const { error: hourError } = await supabase.from('rate_limits').upsert(
-    { user_id: userId, action: 'wardrobe_recommend', window_key: hourKey, count: (hourRow?.count ?? 0) + 1 },
-    { onConflict: 'user_id,action,window_key' }
-  )
-  if (hourError) throw new Error('Rate limit check failed')
-
-  const { error: dayError } = await supabase.from('rate_limits').upsert(
-    { user_id: userId, action: 'wardrobe_recommend', window_key: dayKey, count: (dayRow?.count ?? 0) + 1 },
-    { onConflict: 'user_id,action,window_key' }
-  )
-  if (dayError) throw new Error('Rate limit check failed')
-
-  return { allowed: true }
-}
-
+// Rate limiting logic has been moved to lib/rate-limit.ts
 // ---------------------------------------------------------------------------
 // Main recommendation action
 // ---------------------------------------------------------------------------
@@ -120,7 +65,7 @@ export async function getRecommendation(
   userPicksRaw: UserPicks,
   latRaw?: number | null,
   lonRaw?: number | null
-): Promise<RecommendationResult | { error: string }> {
+): Promise<RecommendationResult | { error: string; rateLimit?: boolean; resetAt?: string }> {
   try {
     const validated = GetRecommendationSchema.parse({ userPicks: userPicksRaw, lat: latRaw, lon: lonRaw })
     const { userPicks, lat, lon } = validated
@@ -133,8 +78,33 @@ export async function getRecommendation(
     if (!user || authError) throw new Error('Unauthorized')
 
     // 2. Rate limit check
-    const rl = await checkRateLimit(user.id)
-    if (!rl.allowed) return { error: rl.reason ?? 'Rate limit exceeded.' }
+    const hourly = await checkRateLimit({
+      endpoint: 'wardrobe:hourly',
+      identifier: user.id,
+      maxRequests: 10,
+      windowMinutes: 60
+    })
+    if (!hourly.allowed) {
+      return { 
+        error: 'You\'ve reached the recommendation limit for this hour. You can try again at [time]. In the meantime, browse your collection or check your wear history.',
+        rateLimit: true,
+        resetAt: hourly.resetAt.toISOString()
+      }
+    }
+
+    const daily = await checkRateLimit({
+      endpoint: 'wardrobe:daily',
+      identifier: user.id,
+      maxRequests: 30,
+      windowMinutes: 1440
+    })
+    if (!daily.allowed) {
+      return { 
+        error: 'You\'ve reached the daily recommendation limit. You can try again tomorrow at [time]. In the meantime, browse your collection or check your wear history.',
+        rateLimit: true,
+        resetAt: daily.resetAt.toISOString()
+      }
+    }
 
   // 3. Fetch user's bottles
   const { data: bottlesRaw, error: bottlesError } = await supabase
