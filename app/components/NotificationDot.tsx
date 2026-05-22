@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState, useTransition } from 'react'
+import { useRouter } from 'next/navigation'
 import { markNotificationsSeen } from '@/app/actions/social'
 
 type NotificationDotProps = {
@@ -17,11 +18,14 @@ export default function NotificationDot({ hasNew }: NotificationDotProps) {
     setShowDot(hasNew)
   }
 
+  const router = useRouter()
+
   const handleClick = () => {
     setShowDot(false)
     startTransition(async () => {
       await markNotificationsSeen()
     })
+    router.push('/notifications')
   }
 
   return (

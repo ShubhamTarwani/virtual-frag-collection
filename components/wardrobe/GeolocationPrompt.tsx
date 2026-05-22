@@ -37,17 +37,17 @@ function writeCache(result: GeoResult) {
 }
 
 export default function GeolocationPrompt({ onResolved }: Props) {
-  const [phase, setPhase] = useState<'checking' | 'prompt' | 'cityPicker' | 'done'>(() => {
-    if (typeof window === 'undefined') return 'checking'
-    return readCached() ? 'done' : 'prompt'
-  })
+  const [phase, setPhase] = useState<'checking' | 'prompt' | 'cityPicker' | 'done'>('checking')
   const [error] = useState<string | null>(null)
 
   useEffect(() => {
     // 1. Check localStorage cache first
     const cached = readCached()
     if (cached) {
+      setPhase('done')
       onResolved(cached)
+    } else {
+      setPhase('prompt')
     }
   }, [onResolved])
 

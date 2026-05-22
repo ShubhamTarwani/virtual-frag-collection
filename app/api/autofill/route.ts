@@ -3,7 +3,7 @@ import { createClient } from '@supabase/supabase-js';
 
 export async function POST(req: Request) {
   try {
-    const { name, brand } = await req.json();
+    const { name, brand, isLiquidDeo } = await req.json();
 
     if (!name || !brand) {
       return NextResponse.json(
@@ -45,7 +45,7 @@ export async function POST(req: Request) {
       );
     }
 
-    const prompt = `You are a fragrance expert API. I am providing you with a perfume name and brand: "${name} by ${brand}".
+    let prompt = `You are a fragrance expert API. I am providing you with a perfume name and brand: "${name} by ${brand}".
 Please return a valid JSON object with EXACTLY seven keys: "category", "occasion", "notes", "concentration", "rating", "longevity_hours", and "ideal_season".
 1. "category": Must be one of exactly these: "Niche", "Designer", "Middle Eastern", "Mass Produced", "Clones", or "Other".
 2. "occasion": Must be one of exactly these: "Date Night", "Meeting", "Casual", "Evening", "Office", "Party", "Gym", "Clubbing", "Formal", "Vacation", "Wedding", or "Everyday".
@@ -56,6 +56,20 @@ Please return a valid JSON object with EXACTLY seven keys: "category", "occasion
 7. "ideal_season": Must be one of exactly these: "Spring", "Summer", "Fall", or "Winter".
 
 Return ONLY the raw JSON object, without markdown formatting or code blocks.`;
+
+    if (isLiquidDeo) {
+      prompt = `You are a fragrance expert API. I am providing you with a liquid deodorant name and brand: "${name} by ${brand}".
+Please return a valid JSON object with EXACTLY seven keys: "category", "occasion", "notes", "concentration", "rating", "longevity_hours", and "ideal_season".
+1. "category": "Liquid Deodorants".
+2. "occasion": Must be one of exactly these: "Date Night", "Meeting", "Casual", "Evening", "Office", "Party", "Gym", "Clubbing", "Formal", "Vacation", "Wedding", or "Everyday".
+3. "notes": A single string listing ONLY the dry down / base notes of the original perfume it is based on (e.g., "Base: Vanilla, Oud, Musk"). Do NOT include Top or Heart notes.
+4. "concentration": "Deodorant" or "Body Spray".
+5. "rating": A number from 0 to 5.
+6. "longevity_hours": A whole number estimating how many hours the deodorant lasts (e.g., 4).
+7. "ideal_season": Must be one of exactly these: "Spring", "Summer", "Fall", or "Winter".
+
+Return ONLY the raw JSON object, without markdown formatting or code blocks.`;
+    }
 
     const response = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,

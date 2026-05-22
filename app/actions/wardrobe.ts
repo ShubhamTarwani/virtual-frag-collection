@@ -6,6 +6,7 @@
  */
 import { cookies } from 'next/headers'
 import { createClient } from '@/utils/supabase/server'
+import { createClient as createAdminClient } from '@supabase/supabase-js'
 import { buildAutoContext } from '@/lib/wardrobe/context'
 import { scoreCollection } from '@/lib/wardrobe/scoring'
 import { pickFinalRecommendation } from '@/lib/wardrobe/gemini'
@@ -59,8 +60,10 @@ export type RecommendationResult = {
 // ---------------------------------------------------------------------------
 
 async function checkRateLimit(userId: string): Promise<{ allowed: boolean; reason?: string }> {
-  const cookieStore = await cookies()
-  const supabase = createClient(cookieStore)
+  const supabase = createAdminClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  )
   const now = new Date()
 
   const pad = (n: number) => String(n).padStart(2, '0')

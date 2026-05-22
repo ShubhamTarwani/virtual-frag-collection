@@ -4,7 +4,7 @@
  * components/wardrobe/WardrobeInput.tsx
  * The input phase: context card + pill rows + loading state.
  */
-import { useState, useTransition } from 'react'
+import { useState, useTransition, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { getRecommendation } from '@/app/actions/wardrobe'
 import type { RecommendationResult } from '@/app/actions/wardrobe'
@@ -99,8 +99,9 @@ export default function WardrobeInput({ onResult }: Props) {
   const [msgIdx, setMsgIdx] = useState(0)
   const [isPending, startTransition] = useTransition()
   const [error, setError] = useState<string | null>(null)
+  const [refreshKey, setRefreshKey] = useState(0)
 
-  const handleGeoResolved = async (result: { lat: number; lon: number; label?: string }) => {
+  const handleGeoResolved = useCallback(async (result: { lat: number; lon: number; label?: string }) => {
     setGeo(result)
     setContextLoading(true)
     try {
@@ -115,12 +116,13 @@ export default function WardrobeInput({ onResult }: Props) {
       }
     } catch { /* context load failed — carry on */ }
     setContextLoading(false)
-  }
+  }, [])
 
   const handleRefreshLocation = () => {
     try { localStorage.removeItem('wardrobe_geo') } catch { /* */ }
     setGeo(null)
     setContext(null)
+    setRefreshKey(k => k + 1)
   }
 
   const handleSubmit = () => {
@@ -161,7 +163,7 @@ export default function WardrobeInput({ onResult }: Props) {
         Your AI fragrance concierge — picks the right bottle for this exact moment.
       </p>
 
-      <GeolocationPrompt onResolved={handleGeoResolved} />
+      <GeolocationPrompt key={refreshKey} onResolved={handleGeoResolved} />
 
       <ContextCard context={context} loading={contextLoading} onRefresh={handleRefreshLocation} />
 

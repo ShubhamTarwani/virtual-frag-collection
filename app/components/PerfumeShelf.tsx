@@ -32,7 +32,7 @@ export type Perfume = {
 }
 
 const filterModes = ['Type', 'Occasion', 'Smell', 'Notes'] as const
-const typeOptions = ['All', 'Niche', 'Designer', 'Middle Eastern', 'Mass Produced', 'Clones', 'Other']
+const typeOptions = ['All', 'Niche', 'Designer', 'Middle Eastern', 'Mass Produced', 'Clones', 'Liquid Deodorants', 'Other']
 const occasionOptions = ['All', 'Date Night', 'Meeting', 'Casual', 'Evening', 'Office', 'Party']
 const smellOptions = ['All', 'Gourmand', 'Fresh', 'Aquatic', 'Floral', 'Woody', 'Oriental', 'Spicy']
 const notesOptions = ['All', 'Vanilla', 'Honey', 'Oud', 'Rose', 'Citrus', 'Amber', 'Leather', 'Musk', 'Sandalwood']
@@ -60,10 +60,12 @@ const cloneBrands = new Set(['paris corner', 'dupe', 'alt', 'clone', 'xxx collec
 function classifyPerfume(p: Perfume) {
   const brand = (p.brand || '').toLowerCase()
   const name = (p.name || '').toLowerCase()
+  const category = (p.category || '').toLowerCase()
+
+  if (category.includes('liquid deodorant') || category.includes('liquid deodrant') || name.includes('liquid deodorant') || name.includes('liquid deodrant') || category.includes('dry down') || name.includes('dry down')) return 'Liquid Deodorants'
 
   if (cloneBrands.has(brand) || name.includes('clone') || name.includes('dupe') || name.includes('alt')) return 'Clones'
   if (massProducedBrands.has(brand)) return 'Mass Produced'
-  const category = (p.category || '').toLowerCase()
   if (category.includes('middle eastern') || category.includes('oriental')) return 'Middle Eastern'
   if (category.includes('niche')) return 'Niche'
   if (category.includes('designer')) return 'Designer'
@@ -145,7 +147,8 @@ const sortOrder: Record<string, number> = {
   'Middle Eastern': 3,
   'Mass Produced': 4,
   Clones: 5,
-  Gourmand: 6,
+  'Liquid Deodorants': 6,
+  Gourmand: 7,
   Fresh: 7,
   Aquatic: 8,
   Floral: 9,
@@ -188,7 +191,7 @@ export default function PerfumeShelf() {
   const [selectedPerfume, setSelectedPerfume] = useState<Perfume | null>(null)
   const [editId, setEditId] = useState<string | null>(null)
   const [formValues, setFormValues] = useState({
-    name: '', brand: '', category: '', concentration: '', image_url: '', cloudinary_public_id: '', shelf_row: '0', occasion: '', notes: '', rating: '', longevity_hours: '', ideal_season: ''
+    name: '', brand: '', category: '', concentration: '', image_url: '', cloudinary_public_id: '', shelf_row: '0', occasion: '', notes: '', rating: '', longevity_hours: '', ideal_season: '', isLiquidDeo: false
   })
 
 
@@ -204,7 +207,7 @@ export default function PerfumeShelf() {
       const res = await fetch('/api/autofill', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: formValues.name, brand: formValues.brand })
+        body: JSON.stringify({ name: formValues.name, brand: formValues.brand, isLiquidDeo: formValues.isLiquidDeo })
       })
       
       const data = await res.json()
@@ -305,10 +308,11 @@ export default function PerfumeShelf() {
       rating: '',
       longevity_hours: '',
       ideal_season: '',
+      isLiquidDeo: false,
     })
   }
 
-  const setFormField = (field: keyof typeof formValues, value: string) => {
+  const setFormField = (field: keyof typeof formValues, value: string | boolean) => {
     setFormValues((prev) => ({ ...prev, [field]: value }))
   }
 
@@ -328,6 +332,7 @@ export default function PerfumeShelf() {
       rating: perfume.rating != null ? String(perfume.rating) : '',
       longevity_hours: perfume.longevity_hours != null ? String(perfume.longevity_hours) : '',
       ideal_season: perfume.ideal_season || '',
+      isLiquidDeo: perfume.category?.toLowerCase().includes('liquid deodorant') || false,
     })
   }
 
@@ -346,6 +351,7 @@ export default function PerfumeShelf() {
       rating: '',
       longevity_hours: '',
       ideal_season: '',
+      isLiquidDeo: false,
     })
   }
 
@@ -520,6 +526,16 @@ export default function PerfumeShelf() {
                         onChange={(e) => setFormField('brand', e.target.value)}
                         className="mt-1 w-full rounded-2xl border border-border-light bg-surface px-3 py-2 text-sm outline-none focus:border-accent"
                       />
+                    </label>
+                    <label className="flex items-center gap-2 cursor-pointer mt-1">
+                      <input type="checkbox" checked={formValues.isLiquidDeo as boolean} onChange={(e) => {
+                        const checked = e.target.checked;
+                        setFormField('isLiquidDeo', checked);
+                        if (checked && !formValues.category) {
+                          setFormField('category', 'Liquid Deodorant');
+                        }
+                      }} className="w-4 h-4 rounded text-accent focus:ring-accent bg-background border-border" />
+                      <span className="text-sm font-semibold text-foreground">This is a Liquid Deodorant</span>
                     </label>
                     <div className="mt-2 mb-2 flex justify-end">
                       <button
