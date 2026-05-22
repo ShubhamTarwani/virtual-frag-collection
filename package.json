@@ -7,10 +7,12 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
+    "test": "node --import tsx/esm --test lib/wardrobe/scoring.test.ts",
     "migrate:images": "tsx scripts/migrate-images-to-cloudinary.ts",
     "health": "curl -s http://localhost:3000/api/health | jq"
   },
   "dependencies": {
+    "@google/generative-ai": "^0.24.1",
     "@supabase/ssr": "^0.10.3",
     "@supabase/supabase-js": "^2.36.0",
     "browser-image-compression": "^2.0.2",
@@ -19,7 +21,8 @@
     "nanoid": "^5.1.11",
     "next": "16.2.6",
     "react": "19.2.4",
-    "react-dom": "19.2.4"
+    "react-dom": "19.2.4",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",

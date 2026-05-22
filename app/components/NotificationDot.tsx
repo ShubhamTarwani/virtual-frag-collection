@@ -9,11 +9,13 @@ type NotificationDotProps = {
 
 export default function NotificationDot({ hasNew }: NotificationDotProps) {
   const [showDot, setShowDot] = useState(hasNew)
+  const [prevHasNew, setPrevHasNew] = useState(hasNew)
   const [, startTransition] = useTransition()
 
-  useEffect(() => {
+  if (hasNew !== prevHasNew) {
+    setPrevHasNew(hasNew)
     setShowDot(hasNew)
-  }, [hasNew])
+  }
 
   const handleClick = () => {
     setShowDot(false)

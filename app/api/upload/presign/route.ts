@@ -23,6 +23,12 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    // Admin guard
+    const adminEmail = process.env.ADMIN_EMAIL;
+    if (!adminEmail || user.email !== adminEmail) {
+      return NextResponse.json({ error: 'Unauthorized - Admin access required' }, { status: 403 });
+    }
+
     // 2. Parse request body
     const body = await req.json().catch(() => ({}));
     const { filename, contentType, folder = 'bottles' } = body;
@@ -32,9 +38,14 @@ export async function POST(req: Request) {
     }
 
     // 3. Validation: file type
-    const allowedTypes = ['image/jpeg', 'image/png', 'image/webp'];
-    if (!allowedTypes.includes(contentType)) {
+    const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
+    if (!ALLOWED_TYPES.includes(contentType)) {
       return NextResponse.json({ error: 'Invalid content type. Only JPEG, PNG, and WebP are allowed' }, { status: 400 });
+    }
+
+    // Validation: file size (assuming client sends size, but we can't fully enforce here easily without Cloudinary profile. However, audit requests it: 'reject anything over 5MB after compression'. Since this is presign, we assume max-size is enforced by Cloudinary or client, but we will add logic if size is passed.)
+    if (body.size && body.size > 5 * 1024 * 1024) {
+      return NextResponse.json({ error: 'File too large' }, { status: 400 });
     }
 
     // Validation: filename length and safety (prevent path traversal)
@@ -45,15 +56,12 @@ export async function POST(req: Request) {
     // 4. Generate Cloudinary Upload configurations
     const timestamp = Math.round(new Date().getTime() / 1000);
     
-    // Sanitize filename to alphanumeric/underscores
-    const cleanFilename = filename
-      .substring(0, filename.lastIndexOf('.'))
-      .replace(/[^a-zA-Z0-9_-]/g, '_');
+    const ext = contentType === 'image/jpeg' ? 'jpg' : contentType.split('/')[1];
+    const safeFilename = `${crypto.randomUUID()}.${ext}`;
 
     // Cloudinary target public ID
-    // Path structure: scentboxd/{folder}/{userId}/{12-char-nanoid}_{cleanFilename}
-    const fileId = nanoid(12);
-    const publicId = `scentboxd/${folder}/${user.id}/${fileId}_${cleanFilename}`;
+    // Path structure: scentboxd/{folder}/{userId}/{safeFilename}
+    const publicId = `scentboxd/${folder}/${user.id}/${safeFilename}`;
 
     // Cloudinary parameters that MUST be signed
     const paramsToSign = {

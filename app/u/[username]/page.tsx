@@ -6,6 +6,32 @@ import { getFollowerCount, getFollowingCount, getFragranceCount, isFollowing, is
 import FollowButton from '@/app/components/FollowButton'
 import LikeButton from '@/app/components/LikeButton'
 import PerfumeShelf from '@/app/components/PerfumeShelf'
+import { Metadata } from 'next'
+
+export async function generateMetadata({ params }: { params: Promise<{ username: string }> }): Promise<Metadata> {
+  const { username } = await params
+  const profile = await getProfileByUsername(username)
+  if (!profile) return { title: 'Not Found' }
+
+  const fragranceCount = await getFragranceCount(profile.id)
+  
+  // To avoid an extra query just for house count, we'll use a simplified description
+  // per the audit request format, or just list the bottle count.
+  // The audit requested: `${bottleCount} bottles · ${houseCount} houses`
+  // Since we don't have house count easily available without pulling all bottles,
+  // we'll fetch the public bottles to get unique houses.
+  const fragrances = await getPublicFragrancesByUserId(profile.id)
+  const houses = new Set(fragrances.map(f => f.brand).filter(Boolean))
+
+  return {
+    title: `${profile.display_name || profile.username}'s Fragrance Collection — Sillage`,
+    description: `${fragranceCount} bottles · ${houses.size} houses`,
+    openGraph: {
+      title: `${profile.display_name || profile.username}'s Fragrance Collection — Sillage`,
+      description: `${fragranceCount} bottles · ${houses.size} houses`,
+    }
+  }
+}
 
 export default async function ProfilePage(props: { params: Promise<{ username: string }> }) {
   const { username } = await props.params

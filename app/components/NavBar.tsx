@@ -34,6 +34,13 @@ export default async function NavBar() {
                 Feed
               </Link>
 
+              <Link
+                href="/wardrobe"
+                className="px-3 py-1.5 rounded-full text-sm text-muted hover:text-foreground hover:bg-surface-hover transition-colors"
+              >
+                🧴 Wardrobe
+              </Link>
+
               <NotificationDot hasNew={hasNew} />
 
               <Link

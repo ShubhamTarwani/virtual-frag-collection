@@ -18,30 +18,34 @@ export default function OnboardingPage() {
 
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  // Debounced username availability check
+  // Cleanup on unmount
   useEffect(() => {
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current)
+    }
+  }, [])
+
+  const handleUsernameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, '')
+    setUsername(val)
+
     if (debounceRef.current) clearTimeout(debounceRef.current)
 
-    if (username.length < 3) {
+    if (val.length < 3) {
       setUsernameStatus({ checking: false })
       return
     }
 
     setUsernameStatus({ checking: true })
-
     debounceRef.current = setTimeout(async () => {
-      const result = await checkUsernameAvailable(username)
+      const result = await checkUsernameAvailable(val)
       setUsernameStatus({
         checking: false,
         available: result.available,
         error: result.error,
       })
     }, 400)
-
-    return () => {
-      if (debounceRef.current) clearTimeout(debounceRef.current)
-    }
-  }, [username])
+  }
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
@@ -90,7 +94,7 @@ export default function OnboardingPage() {
                 maxLength={20}
                 pattern="[a-z0-9_]+"
                 value={username}
-                onChange={(e) => setUsername(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ''))}
+                onChange={handleUsernameChange}
                 className="w-full rounded-2xl border border-border-light bg-surface pl-9 pr-10 py-2.5 text-sm text-foreground outline-none transition focus:border-accent"
                 placeholder="your_username"
               />
