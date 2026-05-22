@@ -14,9 +14,10 @@ export async function POST(req: Request) {
     }
 
     const adminEmail = process.env.ADMIN_EMAIL;
-    if (!adminEmail || user.email !== adminEmail) {
-      return NextResponse.json({ error: 'Unauthorized - Admin access required' }, { status: 403 });
-    }
+    // Removed admin restriction to allow all authenticated users to upload photos
+    // if (!adminEmail || user.email !== adminEmail) {
+    //   return NextResponse.json({ error: 'Unauthorized - Admin access required' }, { status: 403 });
+    // }
 
     const timestamp = Math.round(Date.now() / 1000);
     const folder = 'perfumes';
