@@ -1,9 +1,11 @@
+/* eslint-disable @next/next/no-img-element */
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import { getProfileByUsername, getPublicFragrancesByUserId, getCurrentProfile } from '@/lib/supabase/queries'
 import { getFollowerCount, getFollowingCount, getFragranceCount, isFollowing, isFollowedBy, getLikeCount, isLiked } from '@/lib/supabase/social-queries'
 import FollowButton from '@/app/components/FollowButton'
 import LikeButton from '@/app/components/LikeButton'
+import PerfumeShelf from '@/app/components/PerfumeShelf'
 
 export default async function ProfilePage(props: { params: Promise<{ username: string }> }) {
   const { username } = await props.params
@@ -85,7 +87,9 @@ export default async function ProfilePage(props: { params: Promise<{ username: s
 
         {/* Fragrance grid */}
         <h2 className="text-lg font-semibold text-foreground mb-4">Collection</h2>
-        {fragrancesWithLikes.length === 0 ? (
+        {isOwn ? (
+          <PerfumeShelf />
+        ) : fragrancesWithLikes.length === 0 ? (
           <p className="text-sm text-muted py-8 text-center">No fragrances yet.</p>
         ) : (
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">

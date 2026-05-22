@@ -1,9 +1,10 @@
 "use client"
+/* eslint-disable @next/next/no-img-element */
 
 import React, { useEffect, useState } from 'react'
 import { createClient, type User } from '@supabase/supabase-js'
 import { motion } from 'framer-motion'
-import imageCompression from 'browser-image-compression'
+import ImageUploader from '@/components/upload/ImageUploader'
 import MasonryGrid from './MasonryGrid'
 import DetailDrawer from './DetailDrawer'
 import { samplePerfumes } from './sampleData'
@@ -183,59 +184,14 @@ export default function PerfumeShelf() {
   const [password, setPassword] = useState('')
   const [authError, setAuthError] = useState('')
   const [viewMode, setViewMode] = useState<'Categorized' | 'Master Wall' | 'Masonry'>('Masonry')
-  const [isSorting, setIsSorting] = useState(false)
   const [isAutofilling, setIsAutofilling] = useState(false)
 
   const [selectedPerfume, setSelectedPerfume] = useState<Perfume | null>(null)
   const [editId, setEditId] = useState<string | null>(null)
-  const [uploading, setUploading] = useState(false)
   const [formValues, setFormValues] = useState({
     name: '', brand: '', category: '', concentration: '', image_url: '', shelf_row: '0', occasion: '', notes: '', rating: '', longevity_hours: '', ideal_season: ''
   })
 
-  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (!e.target.files || e.target.files.length === 0) return
-    const file = e.target.files[0]
-    setUploading(true)
-    try {
-      const options = {
-        maxSizeMB: 1,
-        maxWidthOrHeight: 1920,
-        useWebWorker: true,
-      }
-      const compressedFile = await imageCompression(file, options)
-
-      const fileExt = file.name.split('.').pop() || 'jpg'
-      // eslint-disable-next-line react-hooks/purity
-      const fileName = `${Date.now().toString(36)}_${Math.floor(Math.random() * 1000)}.${fileExt}`
-      const filePath = `bottles/${fileName}`
-
-      const { error: uploadError } = await supabase.storage
-        .from('perfumes')
-        .upload(filePath, compressedFile, {
-          cacheControl: '3600',
-          upsert: false
-        })
-
-      if (uploadError) {
-        throw uploadError
-      }
-
-      const { data } = supabase.storage
-        .from('perfumes')
-        .getPublicUrl(filePath)
-
-      if (data?.publicUrl) {
-        setFormField('image_url', data.publicUrl)
-      }
-    } catch (err: unknown) {
-      console.error('Error uploading image:', err)
-      const errorMessage = err instanceof Error ? err.message : String(err)
-      alert(`Upload failed: ${errorMessage}`)
-    } finally {
-      setUploading(false)
-    }
-  }
 
   const handleAutofill = async (e: React.MouseEvent) => {
     e.preventDefault()
@@ -614,30 +570,10 @@ export default function PerfumeShelf() {
                     <label className="block text-xs font-medium text-muted mb-1">
                       Or Upload Photo
                     </label>
-                    <div className="relative flex items-center justify-center border border-dashed border-border-light rounded-2xl p-4 bg-surface hover:bg-surface-hover transition cursor-pointer">
-                      <input
-                        type="file"
-                        accept="image/*"
-                        onChange={handleImageUpload}
-                        disabled={uploading}
-                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                      />
-                      <div className="text-center text-xs text-muted">
-                        {uploading ? (
-                          <span className="flex items-center gap-2 text-muted">
-                            <svg className="animate-spin h-4 w-4 text-muted" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path>
-                            </svg>
-                            Uploading image...
-                          </span>
-                        ) : formValues.image_url ? (
-                          <span className="text-green-600 font-medium">✓ Photo Uploaded successfully</span>
-                        ) : (
-                          <span>Click to select or drop a photo</span>
-                        )}
-                      </div>
-                    </div>
+                    <ImageUploader
+                      folder="bottles"
+                      onUploaded={(url) => setFormField('image_url', url)}
+                    />
                   </div>
                   <label className="text-sm text-foreground">
                     Shelf row
@@ -703,12 +639,6 @@ export default function PerfumeShelf() {
           <div className="flex items-center gap-3">
             <label className="text-sm font-medium text-muted flex items-center gap-2">
               Auto-sort
-              {isSorting && (
-                <svg className="animate-spin h-3 w-3 text-accent" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path>
-                </svg>
-              )}
             </label>
             <button onClick={() => setAutoSort((s) => !s)} className={`h-8 w-16 rounded-full transition-colors font-medium text-xs ${autoSort ? 'bg-accent text-background' : 'bg-surface border border-border-light text-muted hover:text-foreground'}`}>
               {autoSort ? 'ON' : 'OFF'}
