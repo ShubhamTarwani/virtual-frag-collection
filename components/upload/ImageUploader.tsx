@@ -44,10 +44,11 @@ export default function ImageUploader({
       // 1. Client-side Image Compression
       setCompressing(true)
       const options = {
-        maxSizeMB: 0.1,              // Limit to 100KB max
-        maxWidthOrHeight: 800,       // Max 800px width/height
+        maxSizeMB: 0.25,           // 250KB — sweet spot
+        maxWidthOrHeight: 1000,    // 1000px is plenty for card display
         useWebWorker: true,
-        fileType: 'image/webp',      // Output as WebP
+        fileType: 'image/webp',
+        initialQuality: 0.85,      // add this — explicit quality control
       }
       
       const compressedBlob = await imageCompression(file, options)
