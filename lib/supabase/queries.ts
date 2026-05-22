@@ -15,6 +15,7 @@ export type Profile = {
   accent_color: string
   is_public: boolean
   role: string
+  account_number: number | null
   created_at: string
   updated_at: string
 }

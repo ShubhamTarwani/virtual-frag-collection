@@ -1,8 +1,8 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, KeyboardEvent, useEffect } from 'react'
 import Link from 'next/link'
-import { toggleUserSuspension } from '../actions'
+import { toggleUserSuspension, updateAccountNumber } from '../actions'
 import { useRouter } from 'next/navigation'
 
 type User = {
@@ -13,11 +13,14 @@ type User = {
   last_sign_in_at?: string
   bottle_count: number
   suspended: boolean
+  account_number: number | null
 }
 
 export default function UserTable({ users }: { users: User[] }) {
   const [search, setSearch] = useState('')
   const [loadingId, setLoadingId] = useState<string | null>(null)
+  const [editingAccNumId, setEditingAccNumId] = useState<string | null>(null)
+  const [editAccNumValue, setEditAccNumValue] = useState<string>('')
   const router = useRouter()
 
   const filteredUsers = users.filter(u => 
@@ -40,6 +43,44 @@ export default function UserTable({ users }: { users: User[] }) {
     }
   }
 
+  const handleEditAccNum = (user: User) => {
+    setEditingAccNumId(user.id)
+    setEditAccNumValue(user.account_number !== null ? String(user.account_number) : '')
+  }
+
+  const handleSaveAccNum = async (user: User) => {
+    if (editingAccNumId !== user.id) return
+
+    setEditingAccNumId(null)
+    const parsed = editAccNumValue.trim() === '' ? null : parseInt(editAccNumValue, 10)
+    
+    // If no change, return
+    if (parsed === user.account_number) return
+    
+    if (parsed !== null && isNaN(parsed)) {
+      alert('Invalid account number. Must be an integer.')
+      return
+    }
+
+    setLoadingId('acc_' + user.id)
+    try {
+      await updateAccountNumber(user.id, parsed)
+      router.refresh()
+    } catch (e: any) {
+      alert(e.message || 'Failed to update account number.')
+    } finally {
+      setLoadingId(null)
+    }
+  }
+
+  const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>, user: User) => {
+    if (e.key === 'Enter') {
+      handleSaveAccNum(user)
+    } else if (e.key === 'Escape') {
+      setEditingAccNumId(null)
+    }
+  }
+
   return (
     <div>
       <div className="p-4 border-b border-border bg-surface-hover/30">
@@ -56,6 +97,7 @@ export default function UserTable({ users }: { users: User[] }) {
           <thead className="bg-surface-hover/50 text-muted uppercase text-xs">
             <tr>
               <th className="px-6 py-4 font-semibold">User</th>
+              <th className="px-6 py-4 font-semibold">Acc #</th>
               <th className="px-6 py-4 font-semibold">Joined</th>
               <th className="px-6 py-4 font-semibold">Last Active</th>
               <th className="px-6 py-4 font-semibold">Bottles</th>
@@ -73,6 +115,33 @@ export default function UserTable({ users }: { users: User[] }) {
                     </Link>
                   </div>
                   <div className="text-muted text-xs">{u.email}</div>
+                </td>
+                <td className="px-6 py-4">
+                  {editingAccNumId === u.id ? (
+                    <input
+                      autoFocus
+                      type="number"
+                      min="0"
+                      className="w-16 px-2 py-1 bg-background border border-accent rounded text-sm outline-none"
+                      value={editAccNumValue}
+                      onChange={(e) => setEditAccNumValue(e.target.value)}
+                      onKeyDown={(e) => handleKeyDown(e, u)}
+                      onBlur={() => handleSaveAccNum(u)}
+                    />
+                  ) : (
+                    <div 
+                      className={`cursor-pointer inline-flex items-center justify-center px-2 py-1 rounded text-xs font-semibold border ${
+                        u.account_number === 0 ? 'bg-amber-500/10 text-amber-500 border-amber-500/30' :
+                        u.account_number !== null && u.account_number < 15 ? 'bg-yellow-500/10 text-yellow-500 border-yellow-500/30' :
+                        u.account_number !== null ? 'bg-zinc-500/10 text-zinc-400 border-zinc-500/30' :
+                        'bg-surface text-muted border-border border-dashed hover:border-accent'
+                      }`}
+                      onClick={() => handleEditAccNum(u)}
+                      title="Click to edit Account #"
+                    >
+                      {loadingId === 'acc_' + u.id ? '...' : u.account_number !== null ? `#${u.account_number}` : 'Assign'}
+                    </div>
+                  )}
                 </td>
                 <td className="px-6 py-4 text-muted">
                   {new Date(u.created_at).toLocaleDateString()}
@@ -109,7 +178,7 @@ export default function UserTable({ users }: { users: User[] }) {
             ))}
             {filteredUsers.length === 0 && (
               <tr>
-                <td colSpan={6} className="px-6 py-8 text-center text-muted">
+                <td colSpan={7} className="px-6 py-8 text-center text-muted">
                   No users found.
                 </td>
               </tr>

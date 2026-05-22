@@ -65,11 +65,17 @@ function classifyPerfume(p: Perfume) {
   if (category.includes('liquid deodorant') || category.includes('liquid deodrant') || name.includes('liquid deodorant') || name.includes('liquid deodrant') || category.includes('dry down') || name.includes('dry down')) return 'Liquid Deodorants'
 
   if (cloneBrands.has(brand) || name.includes('clone') || name.includes('dupe') || name.includes('alt')) return 'Clones'
-  if (massProducedBrands.has(brand)) return 'Mass Produced'
+  
+  // Explicit category takes precedence over hardcoded brand lists
   if (category.includes('middle eastern') || category.includes('oriental')) return 'Middle Eastern'
   if (category.includes('niche')) return 'Niche'
   if (category.includes('designer')) return 'Designer'
-  if (brand && brand.length > 0 && !massProducedBrands.has(brand)) return 'Niche'
+  if (category.includes('mass produced')) return 'Mass Produced'
+
+  // Fallback to brand-based classification if category is generic or empty
+  if (massProducedBrands.has(brand)) return 'Mass Produced'
+  if (brand && brand.length > 0) return 'Niche'
+  
   return 'Other'
 }
 
@@ -590,6 +596,7 @@ export default function PerfumeShelf() {
                     </label>
                     <ImageUploader
                       folder="bottles"
+                      value={formValues.image_url}
                       onUploaded={(url, publicId) => {
                         setFormField('image_url', url)
                         setFormField('cloudinary_public_id', publicId)

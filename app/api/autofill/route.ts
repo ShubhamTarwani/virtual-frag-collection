@@ -24,9 +24,10 @@ export async function POST(req: Request) {
     }
 
     const adminEmail = process.env.ADMIN_EMAIL;
-    if (adminEmail && user.email !== adminEmail) {
-      return NextResponse.json({ error: 'Forbidden - Admin access required' }, { status: 403 });
-    }
+    // Allow any authenticated user to use the auto-fill feature on their shelf
+    // if (adminEmail && user.email !== adminEmail) {
+    //   return NextResponse.json({ error: 'Forbidden - Admin access required' }, { status: 403 });
+    // }
 
     const autoFillLimit = await checkRateLimit({
       endpoint: 'admin:autofill:hourly',
@@ -101,23 +102,41 @@ Please return a valid JSON object with EXACTLY seven keys: "category", "occasion
 Return ONLY the raw JSON object, without markdown formatting or code blocks.`;
     }
 
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: prompt }] }],
-        }),
-      }
-    );
+    let response;
+    let retries = 3;
+    let delay = 1000; // 1 second initial delay
+    
+    while (retries > 0) {
+      response = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            contents: [{ parts: [{ text: prompt }] }],
+          }),
+        }
+      );
 
-    if (!response.ok) {
-      const errorText = await response.text();
+      // If it's a 503 (Service Unavailable) or 429 (Too Many Requests), wait and retry
+      if (!response.ok && (response.status === 503 || response.status === 429)) {
+        console.warn(`Gemini API overloaded (status ${response.status}). Retrying in ${delay}ms...`);
+        await new Promise(resolve => setTimeout(resolve, delay));
+        retries--;
+        delay *= 2; // Exponential backoff
+        continue;
+      }
+      
+      // If it's successful or a different type of error, break the retry loop
+      break;
+    }
+
+    if (!response || !response.ok) {
+      const errorText = response ? await response.text() : 'No response from Gemini API';
       console.error('Gemini API Error:', errorText);
-      let errMsg = 'Failed to fetch from Gemini API';
+      let errMsg = 'Failed to fetch from Gemini API. It might be experiencing high demand.';
       try {
         const parsed = JSON.parse(errorText);
         if (parsed.error && parsed.error.message) {
@@ -128,7 +147,7 @@ Return ONLY the raw JSON object, without markdown formatting or code blocks.`;
       }
       return NextResponse.json(
         { error: errMsg },
-        { status: response.status }
+        { status: response ? response.status : 503 }
       );
     }
 

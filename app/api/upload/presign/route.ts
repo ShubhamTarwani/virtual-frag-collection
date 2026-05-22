@@ -9,6 +9,15 @@ export async function POST(req: Request) {
     const cookieStore = await cookies();
     const supabase = createClient(cookieStore);
     
+    // Parse body gracefully since older clients might not send one
+    let removeBackground = false;
+    try {
+      const body = await req.json();
+      removeBackground = body?.removeBackground === true;
+    } catch {
+      // Body empty or invalid JSON, ignore
+    }
+    
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     if (authError || !user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -34,10 +43,14 @@ export async function POST(req: Request) {
     const timestamp = Math.round(Date.now() / 1000);
     const folder = 'perfumes';
 
-    const paramsToSign = {
+    const paramsToSign: Record<string, string | number> = {
       timestamp,
       folder,
     };
+
+    if (removeBackground) {
+      paramsToSign.background_removal = 'cloudinary_ai';
+    }
 
     const apiSecret = process.env.CLOUDINARY_API_SECRET;
     if (!apiSecret) {

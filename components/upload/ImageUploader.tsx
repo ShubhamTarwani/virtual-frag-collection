@@ -7,18 +7,30 @@ interface ImageUploaderProps {
   onUploaded: (url: string, publicId: string) => void;
   folder?: string; // Kept for prop compat, but route forces 'perfumes'
   accept?: string;
+  value?: string;
 }
 
 export default function ImageUploader({
   onUploaded,
   folder = 'perfumes',
   accept = 'image/jpeg, image/png, image/webp',
+  value,
 }: ImageUploaderProps) {
   const [uploading, setUploading] = useState(false)
   const [progress, setProgress] = useState(0)
   const [error, setError] = useState<string | null>(null)
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
+  const [removeBackground, setRemoveBackground] = useState(true)
   const fileInputRef = useRef<HTMLInputElement>(null)
+
+  React.useEffect(() => {
+    if (!value) {
+      setPreviewUrl(null)
+      if (fileInputRef.current) {
+        fileInputRef.current.value = ''
+      }
+    }
+  }, [value])
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     setError(null)
@@ -49,7 +61,11 @@ export default function ImageUploader({
       setProgress(10)
 
       // Step 1 - fetch signature from presign route
-      const presignResponse = await fetch('/api/upload/presign', { method: 'POST' })
+      const presignResponse = await fetch('/api/upload/presign', { 
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ removeBackground })
+      })
 
       if (!presignResponse.ok) {
         const errJson = await presignResponse.json().catch(() => ({}))
@@ -66,6 +82,10 @@ export default function ImageUploader({
       formData.append('timestamp', timestamp.toString())
       formData.append('api_key', apiKey)
       formData.append('folder', targetFolder || folder)
+      
+      if (removeBackground) {
+        formData.append('background_removal', 'cloudinary_ai')
+      }
 
       const xhr = new XMLHttpRequest()
       xhr.open('POST', `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, true)
@@ -194,6 +214,26 @@ export default function ImageUploader({
           <span>{error}</span>
         </div>
       )}
+
+      {/* Options */}
+      <div className="flex items-center gap-2 mt-2 ml-1">
+        <label className="flex items-center gap-2 cursor-pointer group">
+          <div className="relative flex items-center">
+            <input 
+              type="checkbox" 
+              checked={removeBackground} 
+              onChange={(e) => setRemoveBackground(e.target.checked)}
+              disabled={uploading}
+              className="peer sr-only"
+            />
+            <div className={`w-10 h-5.5 rounded-full transition-colors ${removeBackground ? 'bg-accent' : 'bg-surface-hover border border-border-light'} ${uploading ? 'opacity-50' : ''}`}></div>
+            <div className={`absolute left-0.5 top-0.5 w-4.5 h-4.5 bg-background rounded-full shadow-sm transition-transform ${removeBackground ? 'translate-x-4.5' : ''}`}></div>
+          </div>
+          <span className={`text-xs font-medium transition-colors ${removeBackground ? 'text-foreground' : 'text-muted'} ${uploading ? 'opacity-50' : ''}`}>
+            Remove background (Cloudinary AI)
+          </span>
+        </label>
+      </div>
     </div>
   )
 }
