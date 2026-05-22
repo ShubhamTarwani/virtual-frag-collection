@@ -47,6 +47,45 @@ export async function signUpWithMagicLink(
 }
 
 // ---------------------------------------------------------------------------
+// Sign up with password (Instant if email confirm is disabled)
+// ---------------------------------------------------------------------------
+
+export async function signUpWithPassword(
+  _prevState: AuthState,
+  formData: FormData
+): Promise<AuthState> {
+  const email = formData.get('email') as string
+  const password = formData.get('password') as string
+
+  if (!email || !email.includes('@')) {
+    return { error: 'Please enter a valid email address' }
+  }
+  if (!password || password.length < 6) {
+    return { error: 'Password must be at least 6 characters' }
+  }
+
+  const cookieStore = await cookies()
+  const supabase = createClient(cookieStore)
+
+  const { data, error } = await supabase.auth.signUp({
+    email,
+    password,
+  })
+
+  if (error) {
+    return { error: error.message }
+  }
+
+  // If email confirmations are disabled, the user is signed in immediately
+  if (data.session) {
+    redirect('/onboarding')
+  } else {
+    // Fallback if confirmations were accidentally left on
+    return { success: 'Check your email to confirm your account!' }
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Sign in with password
 // ---------------------------------------------------------------------------
 

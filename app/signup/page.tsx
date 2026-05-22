@@ -1,12 +1,12 @@
 'use client'
 
 import { useActionState } from 'react'
-import { signUpWithMagicLink, type AuthState } from '@/app/actions/auth'
+import { signUpWithPassword, type AuthState } from '@/app/actions/auth'
 import Link from 'next/link'
 
 export default function SignupPage() {
   const [state, action, pending] = useActionState<AuthState, FormData>(
-    signUpWithMagicLink,
+    signUpWithPassword,
     undefined
   )
 
@@ -26,7 +26,7 @@ export default function SignupPage() {
             Create Account
           </h1>
           <p className="mt-2 text-sm text-muted">
-            We&apos;ll send you a magic link to sign in
+            Enter your details to sign up
           </p>
         </div>
 
@@ -72,12 +72,28 @@ export default function SignupPage() {
                 />
               </div>
 
+              <div>
+                <label htmlFor="signup-password" className="block text-sm font-medium text-foreground mb-1.5 mt-4">
+                  Password
+                </label>
+                <input
+                  id="signup-password"
+                  name="password"
+                  type="password"
+                  autoComplete="new-password"
+                  required
+                  minLength={6}
+                  className="w-full rounded-2xl border border-border-light bg-surface px-4 py-2.5 text-sm text-foreground outline-none transition focus:border-accent"
+                  placeholder="At least 6 characters"
+                />
+              </div>
+
               <button
                 type="submit"
                 disabled={pending}
-                className="w-full rounded-2xl bg-accent px-5 py-2.5 text-sm font-medium text-background transition hover:opacity-90 disabled:opacity-50"
+                className="w-full mt-6 rounded-2xl bg-accent px-5 py-2.5 text-sm font-medium text-background transition hover:opacity-90 disabled:opacity-50"
               >
-                {pending ? 'Sending link…' : 'Send Magic Link'}
+                {pending ? 'Creating Account…' : 'Create Account'}
               </button>
             </>
           )}

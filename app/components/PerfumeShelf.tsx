@@ -2,17 +2,13 @@
 /* eslint-disable @next/next/no-img-element */
 
 import React, { useEffect, useState } from 'react'
-import { createClient, type User } from '@supabase/supabase-js'
+import { type User } from '@supabase/supabase-js'
+import { createClient } from '@/utils/supabase/client'
 import { motion } from 'framer-motion'
 import ImageUploader from '@/components/upload/ImageUploader'
 import MasonryGrid from './MasonryGrid'
 import DetailDrawer from './DetailDrawer'
 import { samplePerfumes } from './sampleData'
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL || '',
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || ''
-)
 
 export type Perfume = {
   id: string
@@ -173,6 +169,7 @@ const sortOrder: Record<string, number> = {
 }
 
 export default function PerfumeShelf() {
+  const supabase = createClient()
   const [perfumes, setPerfumes] = useState<Perfume[]>([])
   const [loading, setLoading] = useState(true)
   const [filterMode, setFilterMode] = useState<typeof filterModes[number]>('Type')
@@ -240,14 +237,13 @@ export default function PerfumeShelf() {
       const { data, error } = await supabase.from('perfumes').select('*').eq('user_id', userId).order('shelf_row', { ascending: true })
       if (error) {
         console.error('Supabase fetch error:', error)
-        setPerfumes(samplePerfumes)
+        setPerfumes([])
       } else {
-        const fetched = (data as Perfume[]) || []
-        setPerfumes(fetched.length > 0 ? fetched : samplePerfumes)
+        setPerfumes((data as Perfume[]) || [])
       }
     } catch (err) {
       console.error('Unexpected fetch error:', err)
-      setPerfumes(samplePerfumes)
+      setPerfumes([])
     } finally {
       setLoading(false)
     }
@@ -263,10 +259,10 @@ export default function PerfumeShelf() {
         if (!error && mounted && currentUser) {
           setUser(currentUser)
         }
-        await fetchPerfumes(currentUser?.id || '1ff55572-765d-4799-992d-7e094e5cd770')
+        await fetchPerfumes(currentUser?.id || '')
       } catch (err) {
         console.error('Supabase auth session error:', err)
-        await fetchPerfumes('1ff55572-765d-4799-992d-7e094e5cd770')
+        await fetchPerfumes('')
       }
     }
 
@@ -377,7 +373,7 @@ export default function PerfumeShelf() {
       return
     }
 
-    await fetchPerfumes(user?.id || '1ff55572-765d-4799-992d-7e094e5cd770')
+    await fetchPerfumes(user?.id || '')
     resetForm()
   }
 
@@ -391,7 +387,7 @@ export default function PerfumeShelf() {
     if (editId === id) {
       resetForm()
     }
-    await fetchPerfumes(user?.id || '1ff55572-765d-4799-992d-7e094e5cd770')
+    await fetchPerfumes(user?.id || '')
   }
 
   const withDerived = perfumes.map((p) => ({

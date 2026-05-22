@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { getCurrentProfile } from '@/lib/supabase/queries'
 import { hasNewNotifications } from '@/lib/supabase/social-queries'
 import NotificationDot from './NotificationDot'
+import SignOutButton from './SignOutButton'
 
 export default async function NavBar() {
   const profile = await getCurrentProfile()
@@ -52,6 +53,7 @@ export default async function NavBar() {
                 )}
                 <span className="hidden sm:inline">{profile.display_name || profile.username}</span>
               </Link>
+              <SignOutButton />
             </>
           ) : (
             <Link
