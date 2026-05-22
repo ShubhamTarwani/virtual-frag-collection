@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { createClient } from '@supabase/supabase-js';
 
 export async function POST(req: Request) {
   try {
@@ -9,6 +10,31 @@ export async function POST(req: Request) {
         { error: 'Name and Brand are required' },
         { status: 400 }
       );
+    }
+
+    // Deliverable 3d: Check master_fragrances first
+    const supabaseAdmin = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
+    );
+
+    const { data: masterMatch } = await supabaseAdmin
+      .from('master_fragrances')
+      .select('*')
+      .ilike('name', name.trim())
+      .ilike('house', brand.trim())
+      .maybeSingle();
+
+    if (masterMatch) {
+      return NextResponse.json({
+        category: masterMatch.family || 'Designer',
+        occasion: masterMatch.occasion_tags?.[0] || 'Everyday',
+        notes: `Top: ${masterMatch.top_notes?.join(', ')}. Heart: ${masterMatch.heart_notes?.join(', ')}. Base: ${masterMatch.base_notes?.join(', ')}`,
+        concentration: 'Eau de Parfum',
+        rating: 4.5,
+        longevity_hours: parseInt(masterMatch.longevity) || 8,
+        ideal_season: masterMatch.season_tags?.[0] || 'Fall'
+      });
     }
 
     const apiKey = process.env.GEMINI_API_KEY;

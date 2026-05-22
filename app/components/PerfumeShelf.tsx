@@ -9,6 +9,7 @@ import ImageUploader from '@/components/upload/ImageUploader'
 import MasonryGrid from './MasonryGrid'
 import DetailDrawer from './DetailDrawer'
 import { samplePerfumes } from './sampleData'
+import { BottleImage } from '@/components/ui/BottleImage'
 
 export type Perfume = {
   id: string

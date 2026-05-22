@@ -1,12 +1,18 @@
 import Link from 'next/link'
 import { getCurrentProfile } from '@/lib/supabase/queries'
 import { hasNewNotifications } from '@/lib/supabase/social-queries'
+import { createClient } from '@/utils/supabase/server'
+import { cookies } from 'next/headers'
 import NotificationDot from './NotificationDot'
 import SignOutButton from './SignOutButton'
 
 export default async function NavBar() {
   const profile = await getCurrentProfile()
   const hasNew = profile ? await hasNewNotifications() : false
+  const cookieStore = await cookies()
+  const supabase = createClient(cookieStore)
+  const { data: { user } } = await supabase.auth.getUser()
+  const isAdmin = user?.email === process.env.ADMIN_EMAIL
 
   return (
     <nav className="sticky top-0 z-50 border-b border-border bg-background/80 backdrop-blur-md">
@@ -40,6 +46,15 @@ export default async function NavBar() {
               >
                 🧴 Wardrobe
               </Link>
+
+              {isAdmin && (
+                <Link
+                  href="/admin"
+                  className="px-3 py-1.5 rounded-full text-sm font-medium text-accent hover:bg-surface-hover transition-colors flex items-center gap-1"
+                >
+                  Admin ⚙
+                </Link>
+              )}
 
               <NotificationDot hasNew={hasNew} />
 

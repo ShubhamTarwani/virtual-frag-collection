@@ -9,7 +9,7 @@ const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!
  * Refreshes the Supabase auth session on every request and
  * protects the /onboarding route for unauthenticated users.
  */
-export function proxy(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   let supabaseResponse = NextResponse.next({
     request: {
       headers: request.headers,
@@ -36,12 +36,31 @@ export function proxy(request: NextRequest) {
   })
 
   // Refresh the auth session (important for server components)
-  // This is intentionally not awaited — the session refresh happens
-  // via cookie manipulation in the getAll/setAll handlers above.
-  void supabase.auth.getUser()
+  // This is intentionally awaited to check the user's suspension status.
+  const { data: { user } } = await supabase.auth.getUser()
+
+  const { pathname } = request.nextUrl
+
+  if (user && pathname !== '/suspended') {
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('suspended')
+      .eq('id', user.id)
+      .single()
+
+    if (profile?.suspended) {
+      await supabase.auth.signOut()
+      const url = request.nextUrl.clone()
+      url.pathname = '/suspended'
+      const redirectResponse = NextResponse.redirect(url)
+      // Clear cookies for the user
+      redirectResponse.cookies.delete('sb-access-token')
+      redirectResponse.cookies.delete('sb-refresh-token')
+      return redirectResponse
+    }
+  }
 
   // Protect onboarding route
-  const { pathname } = request.nextUrl
   if (pathname === '/onboarding') {
     // Let the page handle auth — the server action will redirect if needed
   }

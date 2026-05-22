@@ -3,6 +3,7 @@
 import React, { useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import type { Perfume } from './PerfumeShelf'
+import { BottleImage } from '@/components/ui/BottleImage'
 
 type Props = {
   perfume: Perfume | null
@@ -167,11 +168,13 @@ export default function DetailDrawer({ perfume, onClose }: Props) {
             </button>
 
             {/* Hero image */}
-            {perfume.image_url ? (
-              <img
-                src={perfume.image_url}
+            {perfume.cloudinary_public_id || perfume.image_url ? (
+              <BottleImage
+                publicId={perfume.cloudinary_public_id || perfume.image_url || ''}
                 alt={perfume.name || 'Perfume'}
-                className="drawer-hero-img"
+                width={800}
+                height={800}
+                className="drawer-hero-img object-contain"
               />
             ) : (
               <div className="drawer-hero-img flex items-center justify-center">
