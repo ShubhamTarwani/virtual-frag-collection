@@ -106,7 +106,6 @@ export async function getPublicFragrancesByUserId(userId: string) {
     .from('perfumes')
     .select('*')
     .eq('user_id', userId)
-    .eq('visibility', 'public')
     .order('shelf_row', { ascending: true })
 
   if (error) return []

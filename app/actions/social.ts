@@ -110,5 +110,31 @@ export async function markNotificationsSeen(): Promise<void> {
   await supabase
     .from('profiles')
     .update({ last_seen_notifications: new Date().toISOString() })
-    .eq('id', user.id)
+}
+
+// ---------------------------------------------------------------------------
+// Search users
+// ---------------------------------------------------------------------------
+
+export async function searchUsers(query: string) {
+  if (!query || query.trim() === '') return []
+  
+  const cookieStore = await cookies()
+  const supabase = createClient(cookieStore)
+
+  const searchTerm = `%${query.trim()}%`
+
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('id, username, display_name, avatar_url')
+    .eq('is_public', true)
+    .or(`username.ilike.${searchTerm},display_name.ilike.${searchTerm}`)
+    .limit(5)
+
+  if (error) {
+    console.error('Search error:', error)
+    return []
+  }
+
+  return data
 }

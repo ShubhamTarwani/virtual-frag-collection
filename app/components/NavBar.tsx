@@ -5,6 +5,7 @@ import { createClient } from '@/utils/supabase/server'
 import { cookies } from 'next/headers'
 import NotificationDot from './NotificationDot'
 import SignOutButton from './SignOutButton'
+import UserSearchBar from './UserSearchBar'
 
 export default async function NavBar() {
   const profile = await getCurrentProfile()
@@ -18,12 +19,14 @@ export default async function NavBar() {
     <nav className="sticky top-0 z-50 border-b border-border bg-background/80 backdrop-blur-md">
       <div className="mx-auto max-w-6xl flex items-center justify-between px-6 h-14">
         {/* Logo */}
-        <Link href="/" className="text-sm font-bold tracking-tight text-foreground font-serif hover:text-accent transition-colors">
+        <Link href="/" className="text-sm font-bold tracking-tight text-foreground font-serif hover:text-accent transition-colors shrink-0">
           Fragrance Shelf
         </Link>
 
+        <UserSearchBar />
+
         {/* Nav links */}
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-1 shrink-0">
           <Link
             href="/discover"
             className="px-3 py-1.5 rounded-full text-sm text-muted hover:text-foreground hover:bg-surface-hover transition-colors"
