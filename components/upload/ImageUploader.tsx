@@ -2,20 +2,18 @@
 /* eslint-disable @next/next/no-img-element */
 
 import React, { useState, useRef } from 'react'
-import imageCompression from 'browser-image-compression'
 
 interface ImageUploaderProps {
   onUploaded: (url: string, publicId: string) => void;
-  folder?: 'avatars' | 'bottles';
+  folder?: string; // Kept for prop compat, but route forces 'perfumes'
   accept?: string;
 }
 
 export default function ImageUploader({
   onUploaded,
-  folder = 'bottles',
-  accept = 'image/*',
+  folder = 'perfumes',
+  accept = 'image/jpeg, image/png, image/webp',
 }: ImageUploaderProps) {
-  const [compressing, setCompressing] = useState(false)
   const [uploading, setUploading] = useState(false)
   const [progress, setProgress] = useState(0)
   const [error, setError] = useState<string | null>(null)
@@ -29,10 +27,16 @@ export default function ImageUploader({
 
     const file = files[0]
     
-    // Max pre-compression size check (5MB limit safeguard)
-    const maxPreCompressSize = 5 * 1024 * 1024
-    if (file.size > maxPreCompressSize) {
-      setError('File is too large. Please select an image under 5MB.')
+    // Client-side Validation
+    const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp']
+    const MAX_SIZE = 10 * 1024 * 1024  // 10MB
+
+    if (!ALLOWED_TYPES.includes(file.type)) {
+      setError('Only JPG, PNG, or WebP images allowed')
+      return
+    }
+    if (file.size > MAX_SIZE) {
+      setError('Image must be under 10MB')
       return
     }
 
@@ -41,51 +45,27 @@ export default function ImageUploader({
     setPreviewUrl(localUrl)
 
     try {
-      // 1. Client-side Image Compression
-      setCompressing(true)
-      const options = {
-        maxSizeMB: 0.25,           // 250KB — sweet spot
-        maxWidthOrHeight: 1000,    // 1000px is plenty for card display
-        useWebWorker: true,
-        fileType: 'image/webp',
-        initialQuality: 0.85,      // add this — explicit quality control
-      }
-      
-      const compressedBlob = await imageCompression(file, options)
-      const compressedFile = new File([compressedBlob], `${file.name.substring(0, file.name.lastIndexOf('.')) || 'image'}.webp`, {
-        type: 'image/webp',
-      })
-      setCompressing(false)
-
-      // 2. Fetch Signed Signature from Route
       setUploading(true)
       setProgress(10)
-      const presignResponse = await fetch('/api/upload/presign', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          filename: compressedFile.name,
-          contentType: compressedFile.type,
-          folder,
-        }),
-      })
+
+      // Step 1 - fetch signature from presign route
+      const presignResponse = await fetch('/api/upload/presign', { method: 'POST' })
 
       if (!presignResponse.ok) {
         const errJson = await presignResponse.json().catch(() => ({}))
         throw new Error(errJson.error || 'Failed to authorize upload')
       }
 
-      const { signature, timestamp, apiKey, cloudName, publicId } = await presignResponse.json()
+      const { signature, timestamp, apiKey, cloudName, folder: targetFolder } = await presignResponse.json()
       setProgress(30)
 
-      // 3. Upload Directly to Cloudinary using XMLHttpRequest to monitor progress
+      // Step 2 - upload directly to Cloudinary from the browser
       const formData = new FormData()
-      formData.append('file', compressedFile)
-      formData.append('api_key', apiKey)
-      formData.append('timestamp', timestamp.toString())
+      formData.append('file', file)
       formData.append('signature', signature)
-      formData.append('public_id', publicId)
-      formData.append('overwrite', 'true')
+      formData.append('timestamp', timestamp.toString())
+      formData.append('api_key', apiKey)
+      formData.append('folder', targetFolder || folder)
 
       const xhr = new XMLHttpRequest()
       xhr.open('POST', `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, true)
@@ -126,7 +106,7 @@ export default function ImageUploader({
       // Finalize progress
       setProgress(100)
       
-      // Fire completion callback
+      // Fire completion callback (Step 3 will be handled by the parent saving to Supabase)
       onUploaded(uploadResult.secure_url, uploadResult.public_id)
 
     } catch (err: unknown) {
@@ -135,7 +115,6 @@ export default function ImageUploader({
       // Reset preview on failure
       setPreviewUrl(null)
     } finally {
-      setCompressing(false)
       setUploading(false)
       setProgress(0)
     }
@@ -148,9 +127,9 @@ export default function ImageUploader({
   return (
     <div className="w-full space-y-3">
       <div 
-        onClick={(!compressing && !uploading) ? triggerFileInput : undefined}
+        onClick={(!uploading) ? triggerFileInput : undefined}
         className={`relative flex flex-col items-center justify-center border border-dashed rounded-2xl p-6 bg-surface transition-all duration-300 ${
-          compressing || uploading 
+          uploading 
             ? 'border-accent/40 bg-surface/50 cursor-not-allowed' 
             : 'border-border-light hover:border-accent hover:bg-surface-hover cursor-pointer'
         }`}
@@ -160,7 +139,7 @@ export default function ImageUploader({
           ref={fileInputRef}
           accept={accept}
           onChange={handleFileChange}
-          disabled={compressing || uploading}
+          disabled={uploading}
           className="hidden"
         />
 
@@ -171,7 +150,7 @@ export default function ImageUploader({
               alt="Preview" 
               className="h-full w-full object-contain p-1"
             />
-            {(compressing || uploading) && (
+            {uploading && (
               <div className="absolute inset-0 bg-background/60 flex items-center justify-center">
                 <svg className="animate-spin h-5 w-5 text-accent" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
@@ -187,22 +166,22 @@ export default function ImageUploader({
               Click to select or drop a photo
             </div>
             <div className="text-xs text-muted mt-1">
-              Supports JPEG, PNG, or WebP (max 5MB)
+              Supports JPEG, PNG, or WebP (max 10MB)
             </div>
           </div>
         )}
 
         {/* Progress Display */}
-        {(compressing || uploading) && (
+        {uploading && (
           <div className="w-full max-w-xs mt-3">
             <div className="flex justify-between text-xs text-muted mb-1">
-              <span>{compressing ? 'Compressing image...' : 'Uploading directly to storage...'}</span>
+              <span>Uploading directly to storage...</span>
               <span>{progress > 0 ? `${progress}%` : ''}</span>
             </div>
             <div className="h-1.5 w-full bg-border-light rounded-full overflow-hidden">
               <div 
                 className="h-full bg-accent transition-all duration-300 ease-out" 
-                style={{ width: `${Math.max(progress, compressing ? 45 : 10)}%` }}
+                style={{ width: `${Math.max(progress, 10)}%` }}
               />
             </div>
           </div>

@@ -17,6 +17,7 @@ export type Perfume = {
   category?: string
   concentration?: string
   image_url?: string
+  cloudinary_public_id?: string
   shelf_row?: number
   occasion?: string
   notes?: string
@@ -186,7 +187,7 @@ export default function PerfumeShelf() {
   const [selectedPerfume, setSelectedPerfume] = useState<Perfume | null>(null)
   const [editId, setEditId] = useState<string | null>(null)
   const [formValues, setFormValues] = useState({
-    name: '', brand: '', category: '', concentration: '', image_url: '', shelf_row: '0', occasion: '', notes: '', rating: '', longevity_hours: '', ideal_season: ''
+    name: '', brand: '', category: '', concentration: '', image_url: '', cloudinary_public_id: '', shelf_row: '0', occasion: '', notes: '', rating: '', longevity_hours: '', ideal_season: ''
   })
 
 
@@ -296,6 +297,7 @@ export default function PerfumeShelf() {
       category: '',
       concentration: '',
       image_url: '',
+      cloudinary_public_id: '',
       shelf_row: '0',
       occasion: '',
       notes: '',
@@ -318,6 +320,7 @@ export default function PerfumeShelf() {
       category: perfume.category || '',
       concentration: perfume.concentration || '',
       image_url: perfume.image_url || '',
+      cloudinary_public_id: perfume.cloudinary_public_id || '',
       shelf_row: String(perfume.shelf_row ?? 0),
       occasion: perfume.occasion || '',
       notes: perfume.notes || '',
@@ -335,6 +338,7 @@ export default function PerfumeShelf() {
       category: '',
       concentration: '',
       image_url: '',
+      cloudinary_public_id: '',
       shelf_row: '0',
       occasion: '',
       notes: '',
@@ -351,6 +355,7 @@ export default function PerfumeShelf() {
       category: formValues.category,
       concentration: formValues.concentration,
       image_url: formValues.image_url,
+      cloudinary_public_id: formValues.cloudinary_public_id,
       shelf_row: Number(formValues.shelf_row) || 0,
       occasion: formValues.occasion,
       notes: formValues.notes,
@@ -568,7 +573,10 @@ export default function PerfumeShelf() {
                     </label>
                     <ImageUploader
                       folder="bottles"
-                      onUploaded={(url) => setFormField('image_url', url)}
+                      onUploaded={(url, publicId) => {
+                        setFormField('image_url', url)
+                        setFormField('cloudinary_public_id', publicId)
+                      }}
                     />
                   </div>
                   <label className="text-sm text-foreground">
@@ -706,7 +714,7 @@ export default function PerfumeShelf() {
           {filtered.map(p => (
             <div key={p.id} className="master-wall-cell group" onClick={() => setSelectedPerfume(p)}>
               <div className="master-wall-bottle">
-                <img src={p.image_url || '/placeholder-bottle.png'} alt={p.name || p.brand || 'Perfume'} className="h-full object-contain" />
+                <BottleImage publicId={p.cloudinary_public_id || p.image_url || '/placeholder-bottle.png'} alt={p.name || p.brand || 'Perfume'} width={200} height={300} className="h-full object-contain" />
               </div>
               <div className="w-full px-2 py-3 mt-1 text-center flex flex-col justify-between flex-1 bg-surface/50 border-t border-border-light/50">
                 <div>
@@ -736,7 +744,7 @@ export default function PerfumeShelf() {
                 {items.map((p) => (
                   <div key={p.id} className="w-32 flex-shrink-0 group physical-shelf-item cursor-pointer" onClick={() => setSelectedPerfume(p)}>
                     <div className="relative h-44 w-full overflow-hidden rounded-xl bg-surface-hover/80 shadow-lg transition-all duration-300 group-hover:shadow-[0_8px_30px_rgb(0,0,0,0.12)] border border-border-light group-hover:border-accent">
-                      <img src={p.image_url || '/placeholder-bottle.png'} alt={p.name || p.brand || 'Perfume'} className="h-full w-full object-contain p-2" />
+                      <BottleImage publicId={p.cloudinary_public_id || p.image_url || '/placeholder-bottle.png'} alt={p.name || p.brand || 'Perfume'} width={200} height={300} className="h-full w-full object-contain p-2" />
                     </div>
                     <div className="mt-3 text-sm">
                       <div className="font-bold truncate text-foreground">{p.name || 'Unknown'}</div>
