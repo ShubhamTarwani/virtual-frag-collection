@@ -43,6 +43,7 @@ export default function MasonryGrid({ perfumes, onSelect }: Props) {
             exit="exit"
             className="masonry-card"
             onClick={() => onSelect(p)}
+            data-fragrance-card={true}
           >
             {/* Bottle image */}
             <div className="relative overflow-hidden">

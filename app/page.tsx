@@ -1,19 +1,23 @@
 import Link from 'next/link'
 import { getCurrentProfile } from '@/lib/supabase/queries'
 import { getMostFollowedCollectors } from '@/lib/supabase/social-queries'
+import HeroParticles from '@/components/ui/HeroParticles'
+import ScrollReveal from '@/components/ui/ScrollReveal'
+import { Library, Sparkles, Users } from 'lucide-react'
 
 export default async function Home() {
   const profile = await getCurrentProfile()
   const topCollectors = profile ? [] : await getMostFollowedCollectors(4)
 
   return (
-    <div className="flex flex-col flex-1 bg-background font-sans relative overflow-hidden">
+    <div className="flex flex-col flex-1 bg-background font-sans relative overflow-x-hidden">
       {/* Background decorations */}
-      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-7xl h-[500px] bg-accent/5 blur-[120px] rounded-full pointer-events-none" />
-      <div className="absolute bottom-0 right-0 w-full max-w-3xl h-[400px] bg-accent/5 blur-[100px] rounded-tl-full pointer-events-none" />
+      <HeroParticles />
+      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-7xl h-[500px] bg-accent/5 blur-[120px] rounded-full pointer-events-none z-0" />
+      <div className="absolute bottom-0 right-0 w-full max-w-3xl h-[400px] bg-accent/5 blur-[100px] rounded-tl-full pointer-events-none z-0" />
 
       {/* Hero Section */}
-      <header className="relative flex-1 flex flex-col items-center justify-center text-center px-6 py-24 sm:py-32 min-h-[80vh]">
+      <header className="relative z-10 flex-1 flex flex-col items-center justify-center text-center px-6 py-24 sm:py-32 min-h-[80vh] overflow-visible w-full">
         <div className="flex items-center gap-3 mb-8">
           <div className="h-[1px] w-8 sm:w-12 bg-gradient-to-r from-transparent via-accent to-transparent" />
           <p className="text-[10px] sm:text-xs font-semibold tracking-[0.3em] uppercase text-accent">
@@ -22,7 +26,7 @@ export default async function Home() {
           <div className="h-[1px] w-8 sm:w-12 bg-gradient-to-r from-transparent via-accent to-transparent" />
         </div>
         
-        <h1 className="text-5xl sm:text-7xl lg:text-8xl font-bold tracking-tight text-foreground font-serif leading-[1.1] max-w-4xl mx-auto">
+        <h1 className="text-5xl sm:text-7xl lg:text-8xl font-bold tracking-tight text-foreground font-serif leading-[1.1] max-w-4xl mx-auto overflow-visible px-2">
           Your Digital <br className="hidden sm:block" />
           <span className="text-transparent bg-clip-text bg-gradient-to-r from-foreground to-foreground/50">Fragrance Shelf</span>
         </h1>
@@ -35,14 +39,14 @@ export default async function Home() {
           {profile ? (
             <Link 
               href={`/u/${profile.username}`}
-              className="w-full sm:w-auto rounded-full bg-accent px-8 py-4 text-base font-medium text-background transition-all hover:bg-accent/90 hover:scale-105 shadow-lg shadow-accent/20"
+              className="w-full sm:w-auto rounded-[50px] bg-[#c8a855] px-[2rem] py-[0.75rem] text-base font-medium text-black transition-all hover:bg-[#c8a855]/90 hover:scale-105 shadow-lg shadow-accent/20"
             >
               View Your Shelf
             </Link>
           ) : (
             <Link 
               href="/signup"
-              className="w-full sm:w-auto rounded-full bg-foreground px-8 py-4 text-base font-medium text-background transition-all hover:bg-foreground/90 hover:scale-105 shadow-lg shadow-foreground/20"
+              className="w-full sm:w-auto rounded-[50px] bg-[#c8a855] px-[2rem] py-[0.75rem] text-base font-medium text-black transition-all hover:bg-[#c8a855]/90 hover:scale-105 shadow-lg shadow-accent/20"
             >
               Start Your Collection
             </Link>
@@ -50,7 +54,7 @@ export default async function Home() {
           
           <Link 
             href="/discover"
-            className="w-full sm:w-auto rounded-full bg-surface border border-border px-8 py-4 text-base font-medium text-foreground transition-all hover:bg-surface-hover hover:border-border-light"
+            className="w-full sm:w-auto rounded-[50px] bg-transparent border border-[#c8a855]/30 px-[2rem] py-[0.75rem] text-base font-medium text-foreground transition-all hover:bg-surface-hover hover:border-[#c8a855]/50"
           >
             Explore Community
           </Link>
@@ -58,7 +62,7 @@ export default async function Home() {
 
         {/* Popular Collectors (Logged out only) */}
         {!profile && topCollectors.length > 0 && (
-          <div className="mt-24 w-full max-w-5xl mx-auto border-t border-border pt-16">
+          <ScrollReveal className="mt-24 w-full max-w-5xl mx-auto border-t border-border pt-16">
             <div className="flex items-center justify-between mb-8">
               <h2 className="text-2xl font-bold text-foreground font-serif">Popular Collectors</h2>
               <Link href="/discover" className="text-sm text-accent hover:underline">View all →</Link>
@@ -75,33 +79,35 @@ export default async function Home() {
                 </Link>
               ))}
             </div>
-          </div>
+          </ScrollReveal>
         )}
 
         {/* Feature Highlights */}
-        <div className="mt-24 grid grid-cols-1 sm:grid-cols-3 gap-8 max-w-5xl mx-auto text-left w-full border-t border-border pt-16">
-          <div>
-            <div className="h-12 w-12 rounded-2xl bg-accent/10 border border-accent/20 flex items-center justify-center text-2xl mb-6">
-              ✨
+        <ScrollReveal className="mt-24 grid grid-cols-1 sm:grid-cols-3 w-full max-w-5xl mx-auto border-t border-border pt-16">
+          <div className="flex flex-col items-center sm:items-start text-center sm:text-left px-8 py-4">
+            <div className="text-accent mb-4">
+              <Library size={28} strokeWidth={1.5} />
             </div>
-            <h3 className="text-xl font-bold text-foreground mb-3 font-serif">Curate Beautifully</h3>
-            <p className="text-muted leading-relaxed">Build a stunning visual portfolio of your fragrances. Organize by type, occasion, and scent profile.</p>
+            <h3 className="text-lg font-bold text-foreground mb-2 font-serif">Your Collection</h3>
+            <p className="text-sm text-muted leading-relaxed">Catalogue bottles with notes and wear history.</p>
           </div>
-          <div>
-            <div className="h-12 w-12 rounded-2xl bg-accent/10 border border-accent/20 flex items-center justify-center text-2xl mb-6">
-              🌍
+          
+          <div className="flex flex-col items-center sm:items-start text-center sm:text-left px-8 py-4 sm:border-x sm:border-[#c8a855]/20 border-y sm:border-y-0 border-[#c8a855]/20 my-8 sm:my-0">
+            <div className="text-accent mb-4">
+              <Sparkles size={28} strokeWidth={1.5} />
             </div>
-            <h3 className="text-xl font-bold text-foreground mb-3 font-serif">Connect Globally</h3>
-            <p className="text-muted leading-relaxed">Follow other collectors, see what they are adding to their shelves, and engage through likes.</p>
+            <h3 className="text-lg font-bold text-foreground mb-2 font-serif">AI Wardrobe</h3>
+            <p className="text-sm text-muted leading-relaxed">Weather and mood based recommendations.</p>
           </div>
-          <div>
-            <div className="h-12 w-12 rounded-2xl bg-accent/10 border border-accent/20 flex items-center justify-center text-2xl mb-6">
-              🤖
+          
+          <div className="flex flex-col items-center sm:items-start text-center sm:text-left px-8 py-4">
+            <div className="text-accent mb-4">
+              <Users size={28} strokeWidth={1.5} />
             </div>
-            <h3 className="text-xl font-bold text-foreground mb-3 font-serif">AI Powered</h3>
-            <p className="text-muted leading-relaxed">Instantly fetch notes, accords, and categorization data for new bottles automatically.</p>
+            <h3 className="text-lg font-bold text-foreground mb-2 font-serif">Community</h3>
+            <p className="text-sm text-muted leading-relaxed">Follow collectors and discover rare bottles.</p>
           </div>
-        </div>
+        </ScrollReveal>
       </header>
 
       <footer className="border-t border-border py-8 text-center bg-surface/50 backdrop-blur-sm">

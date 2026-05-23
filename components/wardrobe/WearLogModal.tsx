@@ -108,7 +108,7 @@ export default function WearLogModal({ bottle, context, initialPicks, onClose, o
             ) : (
               <motion.div key="form">
                 {/* Bottle preview */}
-                <div className="flex items-center gap-4 mb-5">
+                <div className="flex items-center gap-4 mb-5" data-fragrance-card={true}>
                   <div className="w-16 h-16 rounded-xl overflow-hidden border border-[var(--border)] bg-[var(--surface-hover)] shrink-0 flex items-center justify-center">
                     {bottle.image_url ? (
                       <SmartImage src={bottle.image_url} alt={bottle.name ?? ''} width={64} height={64} className="w-full h-full object-contain" />

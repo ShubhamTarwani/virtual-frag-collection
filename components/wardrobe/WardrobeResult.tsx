@@ -27,7 +27,7 @@ function BottleCard({
   size?: 'sm' | 'lg'
 }) {
   return (
-    <div className="flex items-center gap-3 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4">
+    <div className="flex items-center gap-3 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4" data-fragrance-card={true}>
       <div
         className="rounded-xl overflow-hidden border border-[var(--border)] bg-[var(--surface-hover)] shrink-0 flex items-center justify-center"
         style={{ width: size === 'lg' ? 80 : 56, height: size === 'lg' ? 80 : 56 }}
@@ -101,6 +101,7 @@ export default function WardrobeResult({ result, picks, onReset }: Props) {
         initial={{ opacity: 0, y: 16 }}
         animate={{ opacity: 1, y: 0 }}
         className="rounded-3xl border border-[var(--border)] bg-[var(--surface)] overflow-hidden mb-5 gold-glow"
+        data-fragrance-card={true}
       >
         {/* Image */}
         <div className="w-full flex justify-center items-center py-8 px-4 bg-[var(--surface-hover)]" style={{ minHeight: 220 }}>

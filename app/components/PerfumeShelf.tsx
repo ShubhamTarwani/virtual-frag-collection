@@ -37,25 +37,26 @@ const occasionOptions = ['All', 'Date Night', 'Meeting', 'Casual', 'Evening', 'O
 const smellOptions = ['All', 'Gourmand', 'Fresh', 'Aquatic', 'Floral', 'Woody', 'Oriental', 'Spicy']
 const notesOptions = ['All', 'Vanilla', 'Honey', 'Oud', 'Rose', 'Citrus', 'Amber', 'Leather', 'Musk', 'Sandalwood']
 
-const massProducedBrands = new Set([
-  'coty',
-  'armani',
-  'chopard',
-  'calvin klein',
-  'ck',
-  'davidoff',
-  'estee lauder',
-  'guerlain',
-  'lancome',
-  'loreal',
-  'paco rabanne',
-  'paco',
-  'versace',
-  'dior',
-  'guess',
+const designerBrands = new Set([
+  'armani', 'calvin klein', 'ck', 'davidoff', 'dior', 'versace', 'paco rabanne', 'paco',
+  'guess', 'chanel', 'tom ford', 'yves saint laurent', 'ysl', 'prada', 'gucci', 'hermes',
+  'burberry', 'hugo boss', 'boss', 'dolce & gabbana', 'dolce and gabbana', 'd&g',
+  'jean paul gaultier', 'jpg', 'givenchy', 'bvlgari', 'valentino', 'ralph lauren', 'mugler',
+  'carolina herrera', 'azzaro', 'montblanc', 'giorgio armani', 'creed', 'tommy hilfiger',
+  'issey miyake', 'narciso rodriguez', 'viktor & rolf', 'viktor and rolf'
 ])
 
-const cloneBrands = new Set(['paris corner', 'dupe', 'alt', 'clone', 'xxx collection'])
+const massProducedBrands = new Set([
+  'coty', 'loreal', 'estee lauder', 'revlon', 'avon', 'bath & body works', 'victoria\'s secret',
+  'zara', 'h&m', 'old spice', 'axe', 'lynx', 'guerlain', 'lancome', 'chopard'
+])
+
+const middleEasternBrands = new Set([
+  'lattafa', 'afnan', 'armaf', 'rasasi', 'swiss arabian', 'ajmal', 'al haramain', 
+  'fragrance world', 'paris corner', 'asdaaf', 'khalis', 'emir'
+])
+
+const cloneBrands = new Set(['dupe', 'alt', 'clone', 'xxx collection', 'dossier', 'dua', 'alexandria', 'oakcha'])
 
 function classifyPerfume(p: Perfume) {
   const brand = (p.brand || '').toLowerCase()
@@ -66,13 +67,13 @@ function classifyPerfume(p: Perfume) {
 
   if (cloneBrands.has(brand) || name.includes('clone') || name.includes('dupe') || name.includes('alt')) return 'Clones'
   
-  // Explicit category takes precedence over hardcoded brand lists
-  if (category.includes('middle eastern') || category.includes('oriental')) return 'Middle Eastern'
+  if (middleEasternBrands.has(brand) || category.includes('middle eastern') || category.includes('oriental')) return 'Middle Eastern'
+  
   if (category.includes('niche')) return 'Niche'
   if (category.includes('designer')) return 'Designer'
   if (category.includes('mass produced')) return 'Mass Produced'
 
-  // Fallback to brand-based classification if category is generic or empty
+  if (designerBrands.has(brand)) return 'Designer'
   if (massProducedBrands.has(brand)) return 'Mass Produced'
   if (brand && brand.length > 0) return 'Niche'
   
@@ -155,18 +156,18 @@ const sortOrder: Record<string, number> = {
   Clones: 5,
   'Liquid Deodorants': 6,
   Gourmand: 7,
-  Fresh: 7,
-  Aquatic: 8,
-  Floral: 9,
-  Woody: 10,
-  Oriental: 11,
-  Spicy: 12,
-  'Date Night': 13,
-  Meeting: 14,
-  Casual: 15,
-  Evening: 16,
-  Office: 17,
-  Party: 18,
+  Fresh: 8,
+  Aquatic: 9,
+  Floral: 10,
+  Woody: 11,
+  Oriental: 12,
+  Spicy: 13,
+  'Date Night': 14,
+  Meeting: 15,
+  Casual: 16,
+  Evening: 17,
+  Office: 18,
+  Party: 19,
   Vanilla: 19,
   Honey: 20,
   Oud: 21,
@@ -191,7 +192,7 @@ export default function PerfumeShelf() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [authError, setAuthError] = useState('')
-  const [viewMode, setViewMode] = useState<'Categorized' | 'Master Wall' | 'Masonry'>('Masonry')
+  const [viewMode, setViewMode] = useState<'Categorized' | 'Master Wall' | 'Masonry'>('Categorized')
   const [isAutofilling, setIsAutofilling] = useState(false)
 
   const [selectedPerfume, setSelectedPerfume] = useState<Perfume | null>(null)
@@ -436,7 +437,7 @@ export default function PerfumeShelf() {
   }
 
   const groupEntries = Array.from(grouped.entries()).sort((a, b) => {
-    if (!autoSort) return Number(b[0]) - Number(a[0])
+    if (!autoSort) return Number(a[0]) - Number(b[0])
     return (sortOrder[a[0]] ?? 50) - (sortOrder[b[0]] ?? 50)
   })
 
@@ -736,7 +737,7 @@ export default function PerfumeShelf() {
       ) : viewMode === 'Master Wall' ? (
         <div className="master-wall-grid animate-fade-in">
           {filtered.map(p => (
-            <div key={p.id} className="master-wall-cell group" onClick={() => setSelectedPerfume(p)}>
+            <div key={p.id} className="master-wall-cell group" onClick={() => setSelectedPerfume(p)} data-fragrance-card={true}>
               <div className="master-wall-bottle">
                 <BottleImage publicId={p.cloudinary_public_id || p.image_url || '/placeholder-bottle.png'} alt={p.name || p.brand || 'Perfume'} width={200} height={300} className="h-full object-contain" />
               </div>
@@ -766,7 +767,7 @@ export default function PerfumeShelf() {
               </div>
               <div className="flex gap-6 overflow-x-auto pb-4 shelf-row physical-shelf pt-6 px-4">
                 {items.map((p) => (
-                  <div key={p.id} className="w-32 flex-shrink-0 group physical-shelf-item cursor-pointer" onClick={() => setSelectedPerfume(p)}>
+                  <div key={p.id} className="w-32 flex-shrink-0 group physical-shelf-item cursor-pointer" onClick={() => setSelectedPerfume(p)} data-fragrance-card={true}>
                     <div className="relative h-44 w-full overflow-hidden rounded-xl bg-surface-hover/80 shadow-lg transition-all duration-300 group-hover:shadow-[0_8px_30px_rgb(0,0,0,0.12)] border border-border-light group-hover:border-accent">
                       <BottleImage publicId={p.cloudinary_public_id || p.image_url || '/placeholder-bottle.png'} alt={p.name || p.brand || 'Perfume'} width={200} height={300} className="h-full w-full object-contain p-2" />
                     </div>

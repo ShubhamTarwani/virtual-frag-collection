@@ -71,7 +71,7 @@ export default async function DiscoverPage() {
           ) : (
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
               {topFragrances.map((f) => (
-                <div key={f.id} className="rounded-2xl border border-border bg-surface overflow-hidden hover:border-accent/50 transition-colors">
+                <div key={f.id} className="rounded-2xl border border-border bg-surface overflow-hidden hover:border-accent/50 transition-colors" data-fragrance-card={true}>
                   <div className="aspect-square bg-surface-hover flex items-center justify-center p-4">
                     {f.image_url ? <img src={f.image_url} alt={f.name || ''} className="h-full w-full object-contain" /> : <div className="text-3xl text-muted/30">🧴</div>}
                   </div>

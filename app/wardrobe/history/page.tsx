@@ -79,7 +79,7 @@ export default async function HistoryPage() {
                   // eslint-disable-next-line @typescript-eslint/no-explicit-any
                   const bottle = (log as any).perfumes as { id: string; name: string | null; brand: string | null; image_url: string | null } | null
                   return (
-                    <div key={log.id} className="flex items-center gap-3 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-3">
+                    <div key={log.id} className="flex items-center gap-3 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-3" data-fragrance-card={true}>
                       <div className="w-12 h-12 rounded-xl overflow-hidden border border-[var(--border)] bg-[var(--surface-hover)] shrink-0 flex items-center justify-center">
                         {bottle?.image_url ? (
                           <SmartImage src={bottle.image_url} alt={bottle.name ?? ''} width={48} height={48} className="w-full h-full object-contain" />

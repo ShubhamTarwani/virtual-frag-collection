@@ -26,7 +26,7 @@ interface CallGeminiOpts {
   flow: 'fragrance_info' | 'wardrobe_rec'
   userId?: string
   model?: 'gemini-3.1-flash-lite' | 'gemini-2.5-flash' | 'gemini-2.5-pro'
-  systemInstruction: string
+  systemInstruction?: string
   userPrompt: string
   responseSchema: Schema
   maxOutputTokens?: number
@@ -83,7 +83,7 @@ export async function callGemini<T>(opts: CallGeminiOpts): Promise<T> {
 
   const generativeModel = genAI.getGenerativeModel({
     model: modelName,
-    systemInstruction: opts.systemInstruction,
+    ...(opts.systemInstruction ? { systemInstruction: opts.systemInstruction } : {}),
     generationConfig: {
       responseMimeType: 'application/json',
       responseSchema: opts.responseSchema,

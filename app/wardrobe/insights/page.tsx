@@ -46,7 +46,7 @@ export default async function InsightsPage() {
               <p className="drawer-label mb-3">Most-worn this month</p>
               <div className="space-y-2">
                 {insights.mostWorn.map((item, i) => (
-                  <div key={item.bottle?.id ?? i} className="flex items-center gap-3 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-3">
+                  <div key={item.bottle?.id ?? i} className="flex items-center gap-3 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-3" data-fragrance-card={true}>
                     <div className="w-10 h-10 rounded-xl overflow-hidden border border-[var(--border)] bg-[var(--surface-hover)] shrink-0 flex items-center justify-center">
                       {item.bottle?.image_url ? (
                         <SmartImage src={item.bottle.image_url} alt={item.bottle.name ?? ''} width={40} height={40} className="w-full h-full object-contain" />
@@ -72,7 +72,7 @@ export default async function InsightsPage() {
               <p className="text-xs text-[var(--muted)] mb-3">Owned 30+ days, not worn this month</p>
               <div className="flex gap-3 overflow-x-auto pb-2">
                 {insights.unsung.map((bottle) => (
-                  <div key={bottle.id} className="shrink-0 flex flex-col items-center gap-2 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-3 min-w-[100px]">
+                  <div key={bottle.id} className="shrink-0 flex flex-col items-center gap-2 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-3 min-w-[100px]" data-fragrance-card={true}>
                     <div className="w-14 h-14 rounded-xl overflow-hidden border border-[var(--border)] bg-[var(--surface-hover)] flex items-center justify-center">
                       {bottle.image_url ? (
                         <SmartImage src={bottle.image_url} alt={bottle.name ?? ''} width={56} height={56} className="w-full h-full object-contain" />
