@@ -10,10 +10,12 @@ import { createClient as createAdminClient } from '@supabase/supabase-js'
 import { buildAutoContext } from '@/lib/wardrobe/context'
 import { scoreCollection } from '@/lib/wardrobe/scoring'
 import { pickFinalRecommendation } from '@/lib/wardrobe/gemini'
+import { bucketTemperature, bucketHumidity, generateCollectionFingerprint, hashContext } from '@/lib/cache/context-hash'
+import type { WardrobeContext } from '@/lib/cache/context-hash'
 import type { AutoContext } from '@/lib/wardrobe/context'
 import type { Fragrance, WearLog, UserPicks, ScoredBottle } from '@/lib/wardrobe/scoring'
 import type { GeminiOutput } from '@/lib/wardrobe/gemini'
-import { checkRateLimit } from '@/lib/rate-limit'
+import { checkRateLimit } from '@/lib/ratelimit'
 
 import { z } from 'zod'
 
@@ -44,6 +46,7 @@ const GetRecommendationSchema = z.object({
   }),
   lat: z.number().nullable().optional(),
   lon: z.number().nullable().optional(),
+  forceRefresh: z.boolean().optional(),
 })
 
 // ---------------------------------------------------------------------------
@@ -64,11 +67,13 @@ export type RecommendationResult = {
 export async function getRecommendation(
   userPicksRaw: UserPicks,
   latRaw?: number | null,
-  lonRaw?: number | null
+  lonRaw?: number | null,
+  forceRefresh?: boolean
 ): Promise<RecommendationResult | { error: string; rateLimit?: boolean; resetAt?: string }> {
   try {
-    const validated = GetRecommendationSchema.parse({ userPicks: userPicksRaw, lat: latRaw, lon: lonRaw })
+    const validated = GetRecommendationSchema.parse({ userPicks: userPicksRaw, lat: latRaw, lon: lonRaw, forceRefresh })
     const { userPicks, lat, lon } = validated
+    const doForceRefresh = validated.forceRefresh ?? false
 
     const cookieStore = await cookies()
     const supabase = createClient(cookieStore)
@@ -79,10 +84,10 @@ export async function getRecommendation(
 
     // 2. Rate limit check
     const hourly = await checkRateLimit({
-      endpoint: 'wardrobe:hourly',
-      identifier: user.id,
-      maxRequests: 10,
-      windowMinutes: 60
+      userId: user.id,
+      bucket: 'wardrobe_rec',
+      limit: 20,
+      windowSeconds: 3600
     })
     if (!hourly.allowed) {
       return { 
@@ -92,56 +97,102 @@ export async function getRecommendation(
       }
     }
 
-    const daily = await checkRateLimit({
-      endpoint: 'wardrobe:daily',
-      identifier: user.id,
-      maxRequests: 30,
-      windowMinutes: 1440
-    })
-    if (!daily.allowed) {
-      return { 
-        error: 'You\'ve reached the daily recommendation limit. You can try again tomorrow at [time]. In the meantime, browse your collection or check your wear history.',
-        rateLimit: true,
-        resetAt: daily.resetAt.toISOString()
+    // 3. Fetch user's bottles
+    const { data: bottlesRaw, error: bottlesError } = await supabase
+      .from('perfumes')
+      .select('id, name, brand, image_url, family, character, projection, longevity, season_tags, occasion_tags, top_notes, heart_notes, base_notes, last_worn_at, user_rating, rating, ideal_season, occasion')
+      .eq('user_id', user.id)
+
+    if (bottlesError) return { error: 'Failed to fetch your collection.' }
+    const bottles = (bottlesRaw ?? []) as Fragrance[]
+
+    if (bottles.length === 0) {
+      return { error: 'Add a few bottles to unlock your wardrobe assistant.' }
+    }
+
+    // 4. Detect context and hash it for caching
+    const context = await buildAutoContext(lat ?? null, lon ?? null)
+    
+    const wardrobeCtx: WardrobeContext = {
+      temp_bucket: bucketTemperature(context.weatherAvailable ? context.temp : null),
+      humidity_bucket: bucketHumidity(context.weatherAvailable ? context.humidity : null),
+      condition: context.weatherAvailable ? context.condition : 'unknown',
+      time_of_day: context.timeOfDay,
+      season: context.season,
+      occasion: userPicks.occasion,
+      mood: userPicks.mood,
+      setting: userPicks.setting,
+      who_with: userPicks.whoWith,
+      collection_fingerprint: generateCollectionFingerprint(bottles.map(b => b.id))
+    }
+    const ctxHash = hashContext(wardrobeCtx)
+
+    // 5. Check cache Layer 2
+    if (!doForceRefresh) {
+      const { data: cached } = await supabase
+        .from('wardrobe_recommendations_cache')
+        .select('*')
+        .eq('user_id', user.id)
+        .eq('context_hash', ctxHash)
+        .gt('expires_at', new Date().toISOString())
+        .maybeSingle()
+
+      if (cached) {
+        // Verify bottle_ids still exist (in case of a deletion without trigger, though trigger is there)
+        const userBottleIds = new Set(bottles.map(b => b.id))
+        const isValid = cached.bottle_ids.every((id: string) => userBottleIds.has(id))
+        if (isValid) {
+          // Log cache hit
+          const supabaseAdmin = createAdminClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!)
+          await supabaseAdmin.from('gemini_api_log').insert({
+            user_id: user.id,
+            flow: 'wardrobe_rec',
+            cache_hit: true,
+            latency_ms: 0
+          })
+
+          // We need top5 from scoring to return, so compute it anyway (it's fast without Gemini call)
+          const { data: logsRaw } = await supabase.from('wear_logs').select('id, bottle_id, worn_at, occasion').eq('user_id', user.id).order('worn_at', { ascending: false }).limit(30)
+          const allScored = scoreCollection(bottles, context, userPicks, (logsRaw ?? []) as WearLog[])
+          const top5 = allScored.slice(0, 5)
+
+          return { context, recommendation: cached.result as GeminiOutput, top5 }
+        }
       }
     }
 
-  // 3. Fetch user's bottles
-  const { data: bottlesRaw, error: bottlesError } = await supabase
-    .from('perfumes')
-    .select('id, name, brand, image_url, family, character, projection, longevity, season_tags, occasion_tags, top_notes, heart_notes, base_notes, last_worn_at, user_rating, rating, ideal_season, occasion')
-    .eq('user_id', user.id)
+    // 6. Fetch wear history and Score collection
+    const { data: logsRaw } = await supabase
+      .from('wear_logs')
+      .select('id, bottle_id, worn_at, occasion')
+      .eq('user_id', user.id)
+      .order('worn_at', { ascending: false })
+      .limit(30)
 
-  if (bottlesError) return { error: 'Failed to fetch your collection.' }
-  const bottles = (bottlesRaw ?? []) as Fragrance[]
+    const wearHistory = (logsRaw ?? []) as WearLog[]
+    const allScored = scoreCollection(bottles, context, userPicks, wearHistory)
+    const top5 = allScored.slice(0, 5)
 
-  if (bottles.length === 0) {
-    return { error: 'Add a few bottles to unlock your wardrobe assistant.' }
-  }
+    if (top5.length === 0) return { error: 'Not enough bottles to score.' }
 
-  // 4. Fetch last 30 wear_logs for the user
-  const { data: logsRaw } = await supabase
-    .from('wear_logs')
-    .select('id, bottle_id, worn_at, occasion')
-    .eq('user_id', user.id)
-    .order('worn_at', { ascending: false })
-    .limit(30)
+    // 7. Gemini re-ranker
+    const recommendation = await pickFinalRecommendation(top5, context, userPicks)
 
-  const wearHistory = (logsRaw ?? []) as WearLog[]
+    // 8. Upsert cache
+    const mentionedIds = [recommendation.primary.bottle_id, ...recommendation.alternatives.map(a => a.bottle_id)]
+    if (recommendation.avoid_today?.bottle_id) {
+      mentionedIds.push(recommendation.avoid_today.bottle_id)
+    }
 
-  // 5. Detect context
-  const context = await buildAutoContext(lat ?? null, lon ?? null)
+    await supabase.from('wardrobe_recommendations_cache').upsert({
+      user_id: user.id,
+      context_hash: ctxHash,
+      result: recommendation,
+      bottle_ids: Array.from(new Set(mentionedIds)),
+      expires_at: new Date(Date.now() + 6 * 60 * 60 * 1000).toISOString() // 6 hours
+    }, { onConflict: 'user_id, context_hash' })
 
-  // 6. Score collection → top 5
-  const allScored = scoreCollection(bottles, context, userPicks, wearHistory)
-  const top5 = allScored.slice(0, 5)
-
-  if (top5.length === 0) return { error: 'Not enough bottles to score.' }
-
-  // 7. Gemini re-ranker
-  const recommendation = await pickFinalRecommendation(top5, context, userPicks)
-
-  return { context, recommendation, top5 }
+    return { context, recommendation, top5 }
   } catch (e) {
     console.error('[getRecommendation]', e)
     return { error: 'Something went wrong. Please try again.' }

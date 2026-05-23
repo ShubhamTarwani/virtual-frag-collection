@@ -2,9 +2,10 @@
  * lib/wardrobe/gemini.ts
  * Gemini 2.5 Flash re-ranker — picks final recommendation from top-5 candidates.
  */
-import { GoogleGenerativeAI, SchemaType } from '@google/generative-ai'
 import type { Schema } from '@google/generative-ai'
+import { SchemaType } from '@google/generative-ai'
 import { z } from 'zod'
+import { callGemini } from '@/lib/gemini/client'
 import type { AutoContext } from './context'
 import type { ScoredBottle, UserPicks } from './scoring'
 
@@ -63,13 +64,7 @@ const responseSchema: Schema = {
   required: ['primary', 'alternatives', 'avoid_today'],
 }
 
-// ---------------------------------------------------------------------------
-// Logging wrapper
-// ---------------------------------------------------------------------------
-
-function logGeminiCall(latencyMs: number, inputTokens?: number, outputTokens?: number) {
-  console.log(`[wardrobe/gemini] latency=${latencyMs}ms input_tokens=${inputTokens ?? '?'} output_tokens=${outputTokens ?? '?'}`)
-}
+// Note: Logging is handled by the wrapper now.
 
 // ---------------------------------------------------------------------------
 // Build prompt
@@ -82,7 +77,7 @@ function buildPrompt(top5: ScoredBottle[], context: AutoContext, userPicks: User
 
   const contextBlock = [
     `Weather: ${conditionStr}`,
-    `Time: ${context.timeOfDay}, ${context.dayOfWeek === 0 || context.dayOfWeek === 6 ? 'weekend' : 'weekday'}`,
+    `Time: ${context.timeOfDay}`,
     `Season: ${context.season} (Indian climate)`,
     userPicks.occasion ? `Occasion: ${userPicks.occasion}` : null,
     userPicks.mood ? `Mood: ${userPicks.mood}` : null,
@@ -92,20 +87,25 @@ function buildPrompt(top5: ScoredBottle[], context: AutoContext, userPicks: User
 
   const candidateBlock = top5.map((sb, i) => {
     const b = sb.bottle
-    const topNotes = (b.top_notes ?? []).slice(0, 5).join(', ')
-    const heartNotes = (b.heart_notes ?? []).slice(0, 5).join(', ')
-    const baseNotes = (b.base_notes ?? []).slice(0, 5).join(', ')
-    const notesStr = [topNotes, heartNotes, baseNotes].filter(Boolean).join(' / ')
     const daysSince = b.last_worn_at
       ? `${Math.floor((Date.now() - new Date(b.last_worn_at).getTime()) / 86400000)}d ago`
       : 'never worn'
-    const rating = b.user_rating ?? b.rating ?? 'unrated'
-    return `${i + 1}. [bottle_id=${b.id}] ${b.name ?? 'Unknown'} by ${b.brand ?? 'Unknown'}, ${b.family ?? '?'} family, projection: ${b.projection ?? '?'}, notes: ${notesStr || 'unknown'}, score: ${sb.score}, last worn: ${daysSince}, rated: ${rating}/5`
+      
+    if (i < 2) {
+      const topNotes = (b.top_notes ?? []).slice(0, 5).join(', ')
+      const heartNotes = (b.heart_notes ?? []).slice(0, 5).join(', ')
+      const baseNotes = (b.base_notes ?? []).slice(0, 5).join(', ')
+      const notesStr = [topNotes, heartNotes, baseNotes].filter(Boolean).join(' / ')
+      const rating = b.user_rating ?? b.rating ?? 'unrated'
+      return `${i + 1}. [bottle_id=${b.id}] ${b.name ?? 'Unknown'} by ${b.brand ?? 'Unknown'}, ${b.family ?? '?'} family, projection: ${b.projection ?? '?'}, notes: ${notesStr || 'unknown'}, score: ${sb.score}, last worn: ${daysSince}, rated: ${rating}/5`
+    } else {
+      return `${i + 1}. [bottle_id=${b.id}] ${b.name ?? 'Unknown'} by ${b.brand ?? 'Unknown'}, ${b.family ?? '?'} family, score: ${sb.score}, last worn: ${daysSince}`
+    }
   }).join('\n')
 
   const avoidBottle = top5[top5.length - 1]?.bottle
   const avoidBlock = avoidBottle
-    ? `[bottle_id=${avoidBottle.id}] ${avoidBottle.name ?? 'Unknown'}`
+    ? `${avoidBottle.id} ${avoidBottle.name ?? 'Unknown'}`
     : 'none'
 
   return `You are a fragrance concierge for someone's personal collection. Given their current context and 5 candidate fragrances (already pre-scored by algorithm), pick ONE primary recommendation and 3 alternatives. Also name ONE fragrance to avoid today and why.
@@ -165,35 +165,27 @@ export async function pickFinalRecommendation(
     },
   })
 
-  const apiKey = process.env.GOOGLE_GEMINI_API_KEY
+  const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_GEMINI_API_KEY
   if (!apiKey) {
-    console.warn('[wardrobe/gemini] GOOGLE_GEMINI_API_KEY not set — using fallback')
+    console.warn('[wardrobe/gemini] API KEY not set — using fallback')
     return fallback()
   }
 
-  const startMs = Date.now()
   try {
-    const genAI = new GoogleGenerativeAI(apiKey)
-    const model = genAI.getGenerativeModel({
-      model: 'gemini-2.5-flash',
-      generationConfig: {
-        responseMimeType: 'application/json',
-        responseSchema,
-        maxOutputTokens: 500,
-      },
+    const prompt = buildPrompt(top5, context, userPicks)
+    
+    const parsedData = await callGemini<GeminiOutput>({
+      flow: 'wardrobe_rec',
+      userPrompt: prompt,
+      responseSchema,
+      maxOutputTokens: 500,
+      temperature: 0.7,
     })
 
-    const prompt = buildPrompt(top5, context, userPicks)
-    const result = await model.generateContent(prompt)
-    const latency = Date.now() - startMs
-    const usage = result.response.usageMetadata
-    logGeminiCall(latency, usage?.promptTokenCount, usage?.candidatesTokenCount)
-
-    const raw = result.response.text()
-    const parsed = GeminiOutputSchema.safeParse(JSON.parse(raw))
+    const parsed = GeminiOutputSchema.safeParse(parsedData)
 
     if (!parsed.success) {
-      console.warn('[wardrobe/gemini] Zod validation failed:', parsed.error.message)
+      console.warn('[wardrobe/gemini] Zod validation failed:', parsed.error?.message)
       return fallback()
     }
 
@@ -204,8 +196,6 @@ export async function pickFinalRecommendation(
 
     return parsed.data
   } catch (err) {
-    const latency = Date.now() - startMs
-    logGeminiCall(latency)
     console.error('[wardrobe/gemini] Error:', err)
     return fallback()
   }

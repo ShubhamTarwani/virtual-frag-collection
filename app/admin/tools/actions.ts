@@ -3,6 +3,7 @@
 import { createClient } from '@supabase/supabase-js'
 import { cookies } from 'next/headers'
 import { createClient as createServerClient } from '@/utils/supabase/server'
+import { getFragranceInfo } from '@/lib/cache/fragrance-info'
 
 export async function getMissingMetadataCount() {
   const supabaseAdmin = createClient(
@@ -48,33 +49,9 @@ export async function processMetadataBatch() {
     try {
       if (!perfume.name || !perfume.brand) continue;
 
-      const apiKey = process.env.GEMINI_API_KEY
-      if (!apiKey) continue;
-
-      const prompt = `Fragrance expert API. Perfume name and brand: "${perfume.name} by ${perfume.brand}".
-Return ONLY raw JSON:
-{
-  "category": (one of: Niche, Designer, Middle Eastern, Mass Produced, Clones, Other),
-  "occasion": (one of: Date Night, Meeting, Casual, Evening, Office, Party, Gym, Clubbing, Formal, Vacation, Wedding, Everyday),
-  "notes": (e.g. "Top: Bergamot. Heart: Rose. Base: Vanilla"),
-  "concentration": (e.g. "Eau de Parfum"),
-  "rating": (0.0 to 5.0),
-  "longevity_hours": (integer),
-  "ideal_season": (one of: Spring, Summer, Fall, Winter)
-}`
-
-      const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
-      })
-
-      if (!res.ok) continue;
-
-      const data = await res.json()
-      const rawText = data.candidates?.[0]?.content?.parts?.[0]?.text || ''
-      const cleaned = rawText.replace(/```json/g, '').replace(/```/g, '').trim()
-      const parsed = JSON.parse(cleaned)
+      const parsed = await getFragranceInfo(perfume.brand, perfume.name, undefined, {
+        userId: user.id
+      });
 
       // Update perfume
       await supabaseAdmin.from('perfumes').update({
