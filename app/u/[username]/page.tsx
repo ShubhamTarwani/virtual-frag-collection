@@ -7,6 +7,7 @@ import FollowButton from '@/app/components/FollowButton'
 import LikeButton from '@/app/components/LikeButton'
 import PerfumeShelf from '@/app/components/PerfumeShelf'
 import BioEditor from '@/app/components/BioEditor'
+import AccountNumberBadge from '@/components/ui/AccountNumberBadge'
 import { Metadata } from 'next'
 
 export async function generateMetadata({ params }: { params: Promise<{ username: string }> }): Promise<Metadata> {
@@ -83,22 +84,7 @@ export default async function ProfilePage(props: { params: Promise<{ username: s
                 {profile.display_name || profile.username}
               </h1>
               {profile.account_number !== null && (
-                <div 
-                  className={`inline-flex items-center justify-center px-2.5 py-0.5 rounded-full text-xs font-bold tracking-wider shadow-sm border ${
-                    profile.account_number === 0 
-                      ? 'bg-gradient-to-r from-purple-500/20 via-fuchsia-500/20 to-pink-500/20 text-fuchsia-500 border-fuchsia-500/30' 
-                      : profile.account_number < 15 
-                      ? 'bg-gradient-to-r from-amber-500/10 to-yellow-500/10 text-amber-500 border-amber-500/30' 
-                      : 'bg-gradient-to-r from-zinc-500/10 to-slate-500/10 text-zinc-400 border-zinc-500/30'
-                  }`}
-                  title={
-                    profile.account_number === 0 ? "Founder" : 
-                    profile.account_number < 15 ? "Early Adopter" : 
-                    "Registered User"
-                  }
-                >
-                  #{profile.account_number}
-                </div>
+                <AccountNumberBadge number={profile.account_number} size="md" />
               )}
               <FollowButton
                 userId={profile.id}

@@ -15,6 +15,9 @@ export default function AdminSidebar({ adminEmail }: { adminEmail: string }) {
         <Link href="/admin/users" className="px-4 py-2 text-sm font-medium text-foreground hover:bg-surface-hover rounded-xl transition-colors">
           User Management
         </Link>
+        <Link href="/admin/accounts" className="px-4 py-2 text-sm font-medium text-foreground hover:bg-surface-hover rounded-xl transition-colors">
+          Account Numbers
+        </Link>
         <Link href="/admin/tools" className="px-4 py-2 text-sm font-medium text-foreground hover:bg-surface-hover rounded-xl transition-colors">
           AI Tools
         </Link>

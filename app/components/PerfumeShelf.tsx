@@ -10,6 +10,7 @@ import MasonryGrid from './MasonryGrid'
 import DetailDrawer from './DetailDrawer'
 import { samplePerfumes } from './sampleData'
 import { BottleImage } from '@/components/ui/BottleImage'
+import AccountNumberBadge from '@/components/ui/AccountNumberBadge'
 
 export type Perfume = {
   id: string
@@ -188,6 +189,7 @@ export default function PerfumeShelf() {
   const [activeFilter, setActiveFilter] = useState('All')
   const [autoSort, setAutoSort] = useState(true)
   const [user, setUser] = useState<User | null>(null)
+  const [userProfile, setUserProfile] = useState<{ account_number: number | null } | null>(null)
   const [adminOpen, setAdminOpen] = useState(false)
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -270,6 +272,8 @@ export default function PerfumeShelf() {
         const currentUser = data?.session?.user || null
         if (!error && mounted && currentUser) {
           setUser(currentUser)
+          const { data: profile } = await supabase.from('profiles').select('account_number').eq('id', currentUser.id).single()
+          if (profile) setUserProfile(profile)
         }
         await fetchPerfumes(currentUser?.id || '')
       } catch (err) {
@@ -300,6 +304,7 @@ export default function PerfumeShelf() {
   const handleSignOut = async () => {
     await supabase.auth.signOut()
     setUser(null)
+    setUserProfile(null)
     setAuthError('')
     setEditId(null)
     setFormValues({
@@ -448,7 +453,14 @@ export default function PerfumeShelf() {
       <section className="rounded-3xl border border-border bg-surface/90 p-6 shadow-sm">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-4">
           <div>
-            <h2 className="text-lg font-semibold">Manage your collection</h2>
+            <div className="flex items-center gap-3 mb-1">
+              <h2 className="text-lg font-semibold">Manage your collection</h2>
+              {userProfile?.account_number !== null && userProfile?.account_number !== undefined && (
+                <div title={`Collector #${userProfile.account_number.toString().padStart(4, '0')} — joined among the first ${Math.max(userProfile.account_number, 1)} members`}>
+                  <AccountNumberBadge number={userProfile.account_number} size="sm" />
+                </div>
+              )}
+            </div>
             <p className="text-sm text-muted">Sign in to edit your fragrance shelf, add new bottles, and organize your collection.</p>
           </div>
           <button onClick={() => setAdminOpen((open) => !open)} className="rounded-2xl bg-accent px-4 py-2 text-sm text-background transition hover:bg-surface-hover">

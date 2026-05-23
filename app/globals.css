@@ -577,3 +577,21 @@ body {
 }
 body { cursor: none; }
 a, button, [role='button'], input, select, textarea { cursor: none !important; }
+
+@keyframes shimmerGold {
+  0% { box-shadow: 0 0 5px rgba(200, 168, 85, 0.2); border-color: rgba(200, 168, 85, 0.3); }
+  50% { box-shadow: 0 0 15px rgba(200, 168, 85, 0.6); border-color: rgba(200, 168, 85, 0.8); }
+  100% { box-shadow: 0 0 5px rgba(200, 168, 85, 0.2); border-color: rgba(200, 168, 85, 0.3); }
+}
+.shimmer-gold {
+  animation: shimmerGold 3s infinite;
+}
+
+@keyframes shimmerSilver {
+  0% { box-shadow: 0 0 5px rgba(224, 224, 224, 0.2); border-color: rgba(224, 224, 224, 0.3); }
+  50% { box-shadow: 0 0 12px rgba(224, 224, 224, 0.5); border-color: rgba(224, 224, 224, 0.7); }
+  100% { box-shadow: 0 0 5px rgba(224, 224, 224, 0.2); border-color: rgba(224, 224, 224, 0.3); }
+}
+.shimmer-silver {
+  animation: shimmerSilver 3s infinite;
+}
