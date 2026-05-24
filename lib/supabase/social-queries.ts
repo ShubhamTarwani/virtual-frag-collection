@@ -216,7 +216,7 @@ export async function hasNewNotifications(): Promise<boolean> {
 export async function getMostFollowedCollectors(limit = 12) {
   const supabase = await getSupabase()
 
-  // Get follower counts grouped by following_id, then join profiles
+  // Get profiles
   const { data } = await supabase
     .from('profiles')
     .select('id, username, display_name, avatar_url, bio')
@@ -225,16 +225,24 @@ export async function getMostFollowedCollectors(limit = 12) {
 
   if (!data || data.length === 0) return []
 
-  // Get follower counts for each
-  const results = await Promise.all(
-    data.map(async (profile) => {
-      const { count } = await supabase
-        .from('follows')
-        .select('*', { count: 'exact', head: true })
-        .eq('following_id', profile.id)
-      return { ...profile, follower_count: count ?? 0 }
+  // Batch fetch follower counts
+  const profileIds = data.map(p => p.id)
+  const { data: allFollows } = await supabase
+    .from('follows')
+    .select('following_id')
+    .in('following_id', profileIds)
+
+  const counts = new Map<string, number>()
+  if (allFollows) {
+    allFollows.forEach(f => {
+      counts.set(f.following_id, (counts.get(f.following_id) || 0) + 1)
     })
-  )
+  }
+
+  const results = data.map(profile => ({
+    ...profile,
+    follower_count: counts.get(profile.id) || 0
+  }))
 
   return results.sort((a, b) => b.follower_count - a.follower_count)
 }

@@ -1,5 +1,8 @@
 import Link from 'next/link'
+import Image from 'next/image'
 import { getMostFollowedCollectors, getMostLikedFragrancesThisWeek, getTrendingCollectors } from '@/lib/supabase/social-queries'
+
+export const revalidate = 60;
 
 export default async function DiscoverPage() {
   const [topCollectors, topFragrances, trending] = await Promise.all([
@@ -30,8 +33,8 @@ export default async function DiscoverPage() {
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
               {topCollectors.map((c) => (
                 <Link key={c.id} href={`/u/${c.username}`} className="rounded-2xl border border-border bg-surface p-4 text-center hover:border-accent/50 transition-colors">
-                  <div className="mx-auto h-14 w-14 rounded-full bg-accent/10 border border-accent/30 flex items-center justify-center text-lg font-bold text-accent mb-3">
-                    {c.avatar_url ? <img src={c.avatar_url} alt="" className="h-full w-full rounded-full object-cover" /> : (c.display_name || c.username)[0].toUpperCase()}
+                  <div className="mx-auto h-14 w-14 rounded-full bg-accent/10 border border-accent/30 flex items-center justify-center text-lg font-bold text-accent mb-3 overflow-hidden relative">
+                    {c.avatar_url ? <Image src={c.avatar_url} alt="" fill unoptimized priority className="object-cover" /> : (c.display_name || c.username)[0].toUpperCase()}
                   </div>
                   <div className="text-sm font-semibold text-foreground truncate">{c.display_name || c.username}</div>
                   <div className="text-xs text-muted">@{c.username}</div>
@@ -51,8 +54,8 @@ export default async function DiscoverPage() {
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
               {trending.map((c) => (
                 <Link key={c.id} href={`/u/${c.username}`} className="rounded-2xl border border-border bg-surface p-4 text-center hover:border-accent/50 transition-colors">
-                  <div className="mx-auto h-14 w-14 rounded-full bg-accent/10 border border-accent/30 flex items-center justify-center text-lg font-bold text-accent mb-3">
-                    {c.avatar_url ? <img src={c.avatar_url} alt="" className="h-full w-full rounded-full object-cover" /> : (c.display_name || c.username)[0].toUpperCase()}
+                  <div className="mx-auto h-14 w-14 rounded-full bg-accent/10 border border-accent/30 flex items-center justify-center text-lg font-bold text-accent mb-3 overflow-hidden relative">
+                    {c.avatar_url ? <Image src={c.avatar_url} alt="" fill unoptimized className="object-cover" /> : (c.display_name || c.username)[0].toUpperCase()}
                   </div>
                   <div className="text-sm font-semibold text-foreground truncate">{c.display_name || c.username}</div>
                   <div className="text-xs text-muted">@{c.username}</div>
@@ -72,8 +75,8 @@ export default async function DiscoverPage() {
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
               {topFragrances.map((f) => (
                 <div key={f.id} className="rounded-2xl border border-border bg-surface overflow-hidden hover:border-accent/50 transition-colors" data-fragrance-card={true}>
-                  <div className="aspect-square bg-surface-hover flex items-center justify-center p-4">
-                    {f.image_url ? <img src={f.image_url} alt={f.name || ''} className="h-full w-full object-contain" /> : <div className="text-3xl text-muted/30">🧴</div>}
+                  <div className="aspect-square bg-surface-hover flex items-center justify-center p-4 relative">
+                    {f.image_url ? <Image src={f.image_url} alt={f.name || ''} fill unoptimized className="object-contain p-4" /> : <div className="text-3xl text-muted/30">🧴</div>}
                   </div>
                   <div className="p-3">
                     <div className="font-bold text-xs text-foreground truncate">{f.name || 'Unknown'}</div>

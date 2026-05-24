@@ -67,7 +67,7 @@ export async function getProfileByUsername(username: string) {
   const supabase = await getSupabase()
   const { data, error } = await supabase
     .from('profiles')
-    .select('*')
+    .select('id, username, display_name, bio, avatar_url, accent_color, is_public, role, account_number, created_at, updated_at')
     .eq('username', username.toLowerCase())
     .single()
 
@@ -85,7 +85,7 @@ export async function getCurrentProfile() {
 
   const { data, error } = await supabase
     .from('profiles')
-    .select('*')
+    .select('id, username, display_name, bio, avatar_url, accent_color, is_public, role, account_number, created_at, updated_at')
     .eq('id', user.id)
     .single()
 

@@ -1,6 +1,7 @@
 "use client"
 
-import React from 'react'
+import React, { memo } from 'react'
+import Image from 'next/image'
 import { motion, AnimatePresence } from 'framer-motion'
 import type { Perfume } from './PerfumeShelf'
 
@@ -28,7 +29,7 @@ const cardVariants = {
   },
 }
 
-export default function MasonryGrid({ perfumes, onSelect }: Props) {
+const MasonryGrid = memo(function MasonryGrid({ perfumes, onSelect }: Props) {
   return (
     <div className="masonry-grid">
       <AnimatePresence mode="popLayout">
@@ -48,12 +49,15 @@ export default function MasonryGrid({ perfumes, onSelect }: Props) {
             {/* Bottle image */}
             <div className="relative overflow-hidden">
               {p.image_url ? (
-                <img
+                <Image
                   src={p.image_url}
                   alt={p.name || 'Perfume bottle'}
                   className="masonry-card-img"
-                  style={{ minHeight: '180px', maxHeight: '320px' }}
-                  loading="lazy"
+                  width={400}
+                  height={400}
+                  style={{ minHeight: '180px', maxHeight: '320px', width: '100%', height: 'auto', objectFit: 'contain' }}
+                  priority={i < 6}
+                  unoptimized
                 />
               ) : (
                 <div
@@ -104,4 +108,6 @@ export default function MasonryGrid({ perfumes, onSelect }: Props) {
       </AnimatePresence>
     </div>
   )
-}
+})
+
+export default MasonryGrid

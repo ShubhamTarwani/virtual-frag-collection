@@ -1,9 +1,14 @@
 import Link from 'next/link'
+import Image from 'next/image'
+import dynamic from 'next/dynamic'
 import { getCurrentProfile } from '@/lib/supabase/queries'
 import { getMostFollowedCollectors } from '@/lib/supabase/social-queries'
-import HeroParticles from '@/components/ui/HeroParticles'
 import ScrollReveal from '@/components/ui/ScrollReveal'
 import { Library, Sparkles, Users } from 'lucide-react'
+
+const HeroParticles = dynamic(() => import('@/components/ui/HeroParticles'), { ssr: false })
+
+export const revalidate = 60;
 
 export default async function Home() {
   const profile = await getCurrentProfile()
@@ -70,8 +75,8 @@ export default async function Home() {
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-left">
               {topCollectors.map((c) => (
                 <Link key={c.id} href={`/u/${c.username}`} className="group rounded-2xl border border-border bg-surface p-5 hover:border-accent/50 transition-colors">
-                  <div className="h-16 w-16 rounded-full bg-accent/10 border border-accent/30 flex items-center justify-center text-xl font-bold text-accent mb-4">
-                    {c.avatar_url ? <img src={c.avatar_url} alt="" className="h-full w-full rounded-full object-cover" /> : (c.display_name || c.username)[0].toUpperCase()}
+                  <div className="h-16 w-16 rounded-full bg-accent/10 border border-accent/30 flex items-center justify-center text-xl font-bold text-accent mb-4 overflow-hidden relative">
+                    {c.avatar_url ? <Image src={c.avatar_url} alt="" fill priority unoptimized className="object-cover" /> : (c.display_name || c.username)[0].toUpperCase()}
                   </div>
                   <div className="text-base font-semibold text-foreground truncate group-hover:text-accent transition-colors">{c.display_name || c.username}</div>
                   <div className="text-sm text-muted">@{c.username}</div>
