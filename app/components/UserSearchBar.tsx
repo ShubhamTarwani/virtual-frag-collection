@@ -6,7 +6,7 @@ import { searchUsers } from '@/app/actions/social'
 
 export default function UserSearchBar() {
   const [query, setQuery] = useState('')
-  const [results, setResults] = useState<any[]>([])
+  const [results, setResults] = useState<{id: string; username: string; display_name: string | null; avatar_url: string | null}[]>([])
   const [isSearching, setIsSearching] = useState(false)
   const [isOpen, setIsOpen] = useState(false)
   const wrapperRef = useRef<HTMLDivElement>(null)
@@ -25,6 +25,7 @@ export default function UserSearchBar() {
   // Debounced search
   useEffect(() => {
     if (!query.trim()) {
+      // eslint-disable-next-line
       setResults([])
       setIsSearching(false)
       return

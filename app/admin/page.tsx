@@ -93,7 +93,7 @@ export default async function AdminDashboard() {
                     <p className="text-xs text-muted">{b.brand}</p>
                   </div>
                   <div className="text-xs text-muted text-right">
-                    by <Link href={`/u/${(b.profiles as any).username}`} className="hover:text-accent">@{(b.profiles as any).username}</Link>
+                    by <Link href={`/u/${(b.profiles as {username?: string}).username}`} className="hover:text-accent">@{(b.profiles as {username?: string}).username}</Link>
                   </div>
                 </li>
               ))}

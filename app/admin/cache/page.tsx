@@ -55,6 +55,7 @@ export default async function AdminCachePage() {
     .limit(20)
 
   // Expiring Soon (Next 7 days)
+  // eslint-disable-next-line
   const next7Days = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
   const { data: expiringSoon } = await supabase
     .from('fragrance_info_cache')
@@ -80,7 +81,7 @@ export default async function AdminCachePage() {
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <div className="p-6 border rounded-xl bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800 shadow-sm">
-          <h3 className="text-sm text-zinc-500 font-medium">Today's API Calls</h3>
+          <h3 className="text-sm text-zinc-500 font-medium">Today&apos;s API Calls</h3>
           <p className="text-3xl font-bold mt-2">{todayCalls}</p>
         </div>
         <div className="p-6 border rounded-xl bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800 shadow-sm">

@@ -36,7 +36,7 @@ export default function FragranceForm({ initialData, onClose, onSuccess }: Props
     verified: initialData?.verified || false
   })
 
-  const handleChange = (field: keyof MasterFragrance, value: any) => {
+  const handleChange = (field: keyof MasterFragrance, value: unknown) => {
     setFormData(prev => ({ ...prev, [field]: value }))
   }
 
@@ -64,8 +64,8 @@ export default function FragranceForm({ initialData, onClose, onSuccess }: Props
       }
       const data = await res.json()
       setFormData(prev => ({ ...prev, ...data }))
-    } catch (e: any) {
-      setError(e.message)
+    } catch (e: unknown) {
+      setError((e instanceof Error ? e.message : String(e)))
     } finally {
       setAiLoading(false)
     }
@@ -81,10 +81,10 @@ export default function FragranceForm({ initialData, onClose, onSuccess }: Props
         throw new Error('Name, House, and Family are required.')
       }
 
-      await saveMasterFragrance(formData as any, initialData?.id)
+      await saveMasterFragrance(formData as unknown as MasterFragrance, initialData?.id)
       onSuccess()
-    } catch (e: any) {
-      setError(e.message)
+    } catch (e: unknown) {
+      setError((e instanceof Error ? e.message : String(e)))
       setLoading(false)
     }
   }

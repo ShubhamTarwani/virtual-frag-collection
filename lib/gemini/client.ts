@@ -22,6 +22,25 @@ export class NetworkError extends Error {
   }
 }
 
+export function getErrorStatus(err: unknown): number {
+  if (err instanceof Error) {
+    if ('status' in err) {
+      const s = Number((err as Error & { status: number }).status);
+      if (!isNaN(s)) return s;
+    } else if ('response' in err) {
+      const resp = (err as Error & { response: unknown }).response;
+      if (typeof resp === 'object' && resp !== null && 'status' in resp) {
+        const s = Number((resp as { status: number }).status);
+        if (!isNaN(s)) return s;
+      }
+    }
+  } else if (typeof err === 'object' && err !== null && 'status' in err) {
+    const s = Number((err as { status: number }).status);
+    if (!isNaN(s)) return s;
+  }
+  return 500;
+}
+
 interface CallGeminiOpts {
   flow: 'fragrance_info' | 'wardrobe_rec'
   userId?: string
@@ -146,10 +165,10 @@ export async function callGemini<T>(opts: CallGeminiOpts): Promise<T> {
         throw new InvalidResponseError('Failed to parse Gemini response as JSON')
       }
 
-    } catch (err: any) {
+    } catch (err: unknown) {
       const latencyMs = Date.now() - startMs
-      const status = err.status || err.response?.status
-      const errMsg = err.message || String(err)
+      const status = getErrorStatus(err);
+      const errMsg = err instanceof Error ? err.message : String(err)
 
       await logApiCall({
         userId: opts.userId,

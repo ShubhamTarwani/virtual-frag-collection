@@ -79,7 +79,6 @@ export async function getFragranceInfo(
       supabaseAdmin
         .rpc('increment_fragrance_cache_hit', { slug_val: slug })
         .then(() => {})
-        .catch(() => {})
 
       // Log hit
       supabaseAdmin.from('gemini_api_log').insert({
@@ -87,15 +86,14 @@ export async function getFragranceInfo(
         flow: 'fragrance_info',
         cache_hit: true,
         latency_ms: 0,
-      }).then(() => {}).catch(() => {})
+      }).then(() => {})
 
       return cached.data as CachedInfo
     }
   }
 
   // Miss or forceRefresh -> Acquire Lock (Thundering Herd guard)
-  let weGotTheLock = false
-  const { data: lockResult, error: lockError } = await supabaseAdmin.rpc('acquire_fragrance_lock', {
+  await supabaseAdmin.rpc('acquire_fragrance_lock', {
     slug_val: slug
   })
 

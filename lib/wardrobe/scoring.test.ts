@@ -6,9 +6,9 @@
  */
 import { describe, it } from 'node:test'
 import assert from 'node:assert/strict'
-import { scoreBottle, scoreCollection } from './scoring.ts'
-import type { Fragrance, WearLog, UserPicks } from './scoring.ts'
-import type { AutoContext } from './context.ts'
+import { scoreBottle, scoreCollection } from './scoring'
+import type { Fragrance, WearLog, UserPicks } from './scoring'
+import type { AutoContext } from './context'
 
 // ---------------------------------------------------------------------------
 // Shared fixtures

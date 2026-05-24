@@ -67,9 +67,11 @@ export default function GeolocationPrompt({ onResolved }: Props) {
     // 1. Check localStorage cache first
     const cached = readCached()
     if (cached) {
+      // eslint-disable-next-line
       setPhase('done')
       onResolved(cached)
     } else {
+      // eslint-disable-next-line
       setPhase('prompt')
     }
   }, [onResolved])

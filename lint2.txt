@@ -1,0 +1,126 @@
+
+D:\perfume-collection-display\virtual-fragrance-shelf\app\actions\admin.ts
+  36:9  warning  'supabase' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+D:\perfume-collection-display\virtual-fragrance-shelf\app\admin\accounts\page.tsx
+  42:5   error    Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+D:\perfume-collection-display\virtual-fragrance-shelf\app\admin\accounts\page.tsx:42:5
+  40 |
+  41 |   useEffect(() => {
+> 42 |     fetchAccounts()
+     |     ^^^^^^^^^^^^^ Avoid calling setState() directly within an effect
+  43 |   }, [])
+  44 |
+  45 |   useEffect(() => {  react-hooks/set-state-in-effect
+  60:16  warning  'err' is defined but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       @typescript-eslint/no-unused-vars
+
+D:\perfume-collection-display\virtual-fragrance-shelf\app\admin\cache\page.tsx
+  58:30  error  Error: Cannot call impure function during render
+
+`Date.now` is an impure function. Calling an impure function can produce unstable results that update unpredictably when the component happens to re-render. (https://react.dev/reference/rules/components-and-hooks-must-be-pure#components-and-hooks-must-be-idempotent).
+
+D:\perfume-collection-display\virtual-fragrance-shelf\app\admin\cache\page.tsx:58:30
+  56 |
+  57 |   // Expiring Soon (Next 7 days)
+> 58 |   const next7Days = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
+     |                              ^^^^^^^^^^ Cannot call impure function
+  59 |   const { data: expiringSoon } = await supabase
+  60 |     .from('fragrance_info_cache')
+  61 |     .select('brand, name, expires_at, canonical_slug')  react-hooks/purity
+  83:66  error  `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        react/no-unescaped-entities
+
+D:\perfume-collection-display\virtual-fragrance-shelf\app\admin\fragrances\components\FragranceForm.tsx
+  84:45  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+D:\perfume-collection-display\virtual-fragrance-shelf\app\admin\fragrances\components\FragranceTable.tsx
+  51:14  warning  'e' is defined but never used  @typescript-eslint/no-unused-vars
+  63:14  warning  'e' is defined but never used  @typescript-eslint/no-unused-vars
+
+D:\perfume-collection-display\virtual-fragrance-shelf\app\admin\page.tsx
+  46:17   warning  'recentLogs' is assigned a value but never used  @typescript-eslint/no-unused-vars
+  96:57   error    Unexpected any. Specify a different type         @typescript-eslint/no-explicit-any
+  96:121  error    Unexpected any. Specify a different type         @typescript-eslint/no-explicit-any
+
+D:\perfume-collection-display\virtual-fragrance-shelf\app\admin\users\components\UserTable.tsx
+   3:42  warning  'useEffect' is defined but never used  @typescript-eslint/no-unused-vars
+  39:14  warning  'e' is defined but never used          @typescript-eslint/no-unused-vars
+
+D:\perfume-collection-display\virtual-fragrance-shelf\app\admin\users\page.tsx
+  2:8  warning  'Link' is defined but never used  @typescript-eslint/no-unused-vars
+
+D:\perfume-collection-display\virtual-fragrance-shelf\app\api\admin\autofill\route.ts
+  27:22  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+D:\perfume-collection-display\virtual-fragrance-shelf\app\api\autofill\route.ts
+   5:26  warning  'rateLimitResponse' is defined but never used    @typescript-eslint/no-unused-vars
+  27:11  warning  'adminEmail' is assigned a value but never used  @typescript-eslint/no-unused-vars
+  78:22  error    Unexpected any. Specify a different type         @typescript-eslint/no-explicit-any
+
+D:\perfume-collection-display\virtual-fragrance-shelf\app\api\queue\status\route.ts
+  49:19  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+D:\perfume-collection-display\virtual-fragrance-shelf\app\api\queue\worker\route.ts
+  45:29  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+D:\perfume-collection-display\virtual-fragrance-shelf\app\api\upload\presign\route.ts
+  26:11  warning  'adminEmail' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+D:\perfume-collection-display\virtual-fragrance-shelf\app\components\MasonryGrid.tsx
+  51:17  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+D:\perfume-collection-display\virtual-fragrance-shelf\app\components\NavBar.tsx
+  69:19  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+D:\perfume-collection-display\virtual-fragrance-shelf\app\components\NotificationDot.tsx
+  3:10  warning  'useEffect' is defined but never used  @typescript-eslint/no-unused-vars
+
+D:\perfume-collection-display\virtual-fragrance-shelf\app\components\PerfumeShelf.tsx
+    2:1   warning  Unused eslint-disable directive (no problems were reported from '@next/next/no-img-element')
+   11:10  warning  'samplePerfumes' is defined but never used                                                                                         @typescript-eslint/no-unused-vars
+  289:6   warning  React Hook useEffect has missing dependencies: 'fetchPerfumes' and 'supabase'. Either include them or remove the dependency array  react-hooks/exhaustive-deps
+
+D:\perfume-collection-display\virtual-fragrance-shelf\app\components\UserSearchBar.tsx
+  94:23  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+D:\perfume-collection-display\virtual-fragrance-shelf\app\discover\page.tsx
+  34:37  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+  55:37  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+  76:36  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+D:\perfume-collection-display\virtual-fragrance-shelf\app\feed\page.tsx
+  54:46  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+  64:27  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+D:\perfume-collection-display\virtual-fragrance-shelf\app\notifications\page.tsx
+  75:46  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+  85:27  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+D:\perfume-collection-display\virtual-fragrance-shelf\app\page.tsx
+  74:37  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+D:\perfume-collection-display\virtual-fragrance-shelf\app\u\[username]\followers\page.tsx
+  51:23  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+D:\perfume-collection-display\virtual-fragrance-shelf\app\u\[username]\following\page.tsx
+  50:23  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+D:\perfume-collection-display\virtual-fragrance-shelf\components\ui\BottleImage.tsx
+  17:7  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+D:\perfume-collection-display\virtual-fragrance-shelf\components\ui\CustomCursor.tsx
+  6:10  warning  'position' is assigned a value but never used     @typescript-eslint/no-unused-vars
+  6:20  warning  'setPosition' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+D:\perfume-collection-display\virtual-fragrance-shelf\components\wardrobe\GeolocationPrompt.tsx
+  74:7  warning  Unused eslint-disable directive (no problems were reported)
+
+✖ 42 problems (10 errors, 32 warnings)
+  0 errors and 2 warnings potentially fixable with the `--fix` option.
+

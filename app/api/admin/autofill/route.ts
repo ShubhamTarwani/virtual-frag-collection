@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { createClient as createServerClient } from '@/utils/supabase/server';
 import { cookies } from 'next/headers';
 import { getFragranceInfo } from '@/lib/cache/fragrance-info';
+import { getErrorStatus } from '@/lib/gemini/client';
 
 export async function POST(req: Request) {
   try {
@@ -24,12 +25,12 @@ export async function POST(req: Request) {
         userId: user.id
       });
       return NextResponse.json(data);
-    } catch (apiErr: any) {
+    } catch (apiErr: unknown) {
       console.error('Gemini API Error:', apiErr);
-      return NextResponse.json({ error: apiErr.message || 'Failed to fetch from Gemini API' }, { status: apiErr.status || 500 });
+      return NextResponse.json({ error: (apiErr instanceof Error ? apiErr.message : String(apiErr)) || 'Failed to fetch from Gemini API' }, { status: getErrorStatus(apiErr) });
     }
 
-  } catch (err: any) {
-    return NextResponse.json({ error: err.message }, { status: 500 });
+  } catch (err: unknown) {
+    return NextResponse.json({ error: (err instanceof Error ? err.message : String(err)) }, { status: 500 });
   }
 }

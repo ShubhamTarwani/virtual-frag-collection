@@ -116,7 +116,7 @@ export async function getRecommendation(
     const wardrobeCtx: WardrobeContext = {
       temp_bucket: bucketTemperature(context.weatherAvailable ? context.temp : null),
       humidity_bucket: bucketHumidity(context.weatherAvailable ? context.humidity : null),
-      condition: context.weatherAvailable ? context.condition : 'unknown',
+      condition: context.weatherAvailable ? (context.condition || 'unknown') : 'unknown',
       time_of_day: context.timeOfDay,
       season: context.season,
       occasion: userPicks.occasion,
@@ -257,7 +257,29 @@ export async function logWear(inputRaw: LogWearInput): Promise<{ success: boolea
 // Fetch wear history for history page
 // ---------------------------------------------------------------------------
 
-export async function getWearHistory(limit = 100) {
+export interface WardrobeLogWithPerfume {
+  id: string
+  bottle_id?: string
+  worn_at: string
+  occasion: string | null
+  who_with: string | null
+  setting: string | null
+  mood: string | null
+  weather_temp: number | null
+  weather_humidity: number | null
+  weather_condition: string | null
+  season: string | null
+  time_of_day: string | null
+  source: string | null
+  perfumes: {
+    id: string
+    name: string | null
+    brand: string | null
+    image_url: string | null
+  } | null
+}
+
+export async function getWearHistory(limit = 100): Promise<WardrobeLogWithPerfume[]> {
   try {
     const cookieStore = await cookies()
     const supabase = createClient(cookieStore)
@@ -275,7 +297,7 @@ export async function getWearHistory(limit = 100) {
     .order('worn_at', { ascending: false })
     .limit(limit)
 
-    return data ?? []
+    return (data as unknown as WardrobeLogWithPerfume[]) ?? []
   } catch (e) {
     console.error('[getWearHistory]', e)
     return []
@@ -305,11 +327,10 @@ export async function getWearInsights() {
 
   // Count per bottle
   const counts: Record<string, { count: number; bottle: { id: string; name: string | null; brand: string | null; image_url: string | null } }> = {}
-  for (const log of monthLogs ?? []) {
-    const id = log.bottle_id
+  for (const log of (monthLogs as unknown as WardrobeLogWithPerfume[]) ?? []) {
+    const id = log.bottle_id!
     if (!counts[id]) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      counts[id] = { count: 0, bottle: (log as any).perfumes }
+      counts[id] = { count: 0, bottle: log.perfumes! }
     }
     counts[id].count++
   }

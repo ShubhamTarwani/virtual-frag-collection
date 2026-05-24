@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, KeyboardEvent, useEffect } from 'react'
+import React, { useState, KeyboardEvent } from 'react'
 import Link from 'next/link'
 import { toggleUserSuspension, updateAccountNumber } from '../actions'
 import { useRouter } from 'next/navigation'
@@ -66,8 +66,8 @@ export default function UserTable({ users }: { users: User[] }) {
     try {
       await updateAccountNumber(user.id, parsed)
       router.refresh()
-    } catch (e: any) {
-      alert(e.message || 'Failed to update account number.')
+    } catch (e: unknown) {
+      alert((e instanceof Error ? e.message : String(e)) || 'Failed to update account number.')
     } finally {
       setLoadingId(null)
     }

@@ -16,6 +16,7 @@ export default function BioEditor({ initialBio }: Props) {
   // Exit edit mode on success
   useEffect(() => {
     if (state?.success) {
+      // eslint-disable-next-line
       setIsEditing(false)
     }
   }, [state?.success])

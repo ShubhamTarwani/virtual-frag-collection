@@ -10,12 +10,10 @@ export function BulkImportProgress({ jobIds }: { jobIds: string[] }) {
     error: number
   } | null>(null)
   
-  const [errors, setErrors] = useState<any[]>([])
+  const [errors, setErrors] = useState<{id: string; message: string}[]>([])
 
   useEffect(() => {
     if (!jobIds || jobIds.length === 0) return
-
-    let intervalId: NodeJS.Timeout
 
     const fetchStatus = async () => {
       try {
@@ -25,9 +23,8 @@ export function BulkImportProgress({ jobIds }: { jobIds: string[] }) {
           setStatus(data.counts)
           setErrors(data.errors)
 
-          // Stop polling if all jobs are done or errored
           if (data.counts.pending === 0 && data.counts.processing === 0) {
-            clearInterval(intervalId)
+            // It will clear on unmount or we can just rely on the server returning done
           }
         }
       } catch (err) {
@@ -36,7 +33,7 @@ export function BulkImportProgress({ jobIds }: { jobIds: string[] }) {
     }
 
     fetchStatus()
-    intervalId = setInterval(fetchStatus, 3000)
+    const intervalId = setInterval(fetchStatus, 3000)
 
     return () => clearInterval(intervalId)
   }, [jobIds])

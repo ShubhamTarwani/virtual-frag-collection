@@ -46,7 +46,7 @@ export async function GET(req: Request) {
       error: 0
     }
     
-    const errors: any[] = []
+    const errors: {id: string; message: string}[] = []
 
     jobs?.forEach(job => {
       statusCounts[job.status as keyof typeof statusCounts]++
@@ -61,7 +61,7 @@ export async function GET(req: Request) {
       total: ids.length
     })
 
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error('[queue-status] Error:', err)
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 })
   }

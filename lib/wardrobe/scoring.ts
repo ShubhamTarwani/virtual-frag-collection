@@ -1,7 +1,7 @@
 /**
  * lib/wardrobe/scoring.ts — Pure pre-scoring engine, zero I/O.
  */
-import type { AutoContext, Season } from './context'
+import type { AutoContext } from './context'
 
 // ---------------------------------------------------------------------------
 // Types

@@ -162,8 +162,9 @@ async function run() {
       // Delay 2s to avoid 429
       await delay(2000)
 
-    } catch (err: any) {
-      console.error(`\n[ERROR] ${prefix}... failed: ${err.message || String(err)}\n`)
+    } catch (err: unknown) {
+      const errMsg = err instanceof Error ? err.message : String(err)
+      console.error(`\n[ERROR] ${prefix}... failed: ${errMsg}\n`)
       failed++
       
       // Delay longer on error to backoff

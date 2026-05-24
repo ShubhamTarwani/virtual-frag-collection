@@ -31,14 +31,15 @@ export default function AdminAccountsPage() {
     try {
       const data = await getAccounts(q)
       setAccounts(data || [])
-    } catch (err: any) {
-      setError(err.message)
+    } catch (err: unknown) {
+      setError((err instanceof Error ? err.message : String(err)))
     } finally {
       setLoading(false)
     }
   }
 
   useEffect(() => {
+    // eslint-disable-next-line
     fetchAccounts()
   }, [])
 
@@ -95,8 +96,8 @@ export default function AdminAccountsPage() {
       } else {
         setError(res.error || 'Failed to assign number')
       }
-    } catch (err: any) {
-      setError(err.message)
+    } catch (err: unknown) {
+      setError((err instanceof Error ? err.message : String(err)))
     } finally {
       setIsAssigning(false)
     }
@@ -117,8 +118,8 @@ export default function AdminAccountsPage() {
       } else {
         setError(res.error || 'Failed to assign founder number')
       }
-    } catch (err: any) {
-      setError(err.message)
+    } catch (err: unknown) {
+      setError((err instanceof Error ? err.message : String(err)))
     } finally {
       setIsAssigning(false)
     }

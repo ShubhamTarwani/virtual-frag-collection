@@ -4,6 +4,7 @@ import { cookies } from 'next/headers';
 import { createClient } from '@/utils/supabase/server';
 import { checkRateLimit, rateLimitResponse } from '@/lib/rate-limit';
 import { getFragranceInfo } from '@/lib/cache/fragrance-info';
+import { getErrorStatus } from '@/lib/gemini/client';
 
 export async function POST(req: Request) {
   try {
@@ -75,11 +76,11 @@ export async function POST(req: Request) {
         isLiquidDeo,
       });
       return NextResponse.json(data);
-    } catch (apiErr: any) {
+    } catch (apiErr: unknown) {
       console.error('Gemini API Error:', apiErr);
       return NextResponse.json(
-        { error: apiErr.message || 'Failed to fetch from Gemini API.' },
-        { status: apiErr.status || 500 }
+        { error: (apiErr instanceof Error ? apiErr.message : String(apiErr)) || 'Failed to fetch from Gemini API' },
+        { status: getErrorStatus(apiErr) }
       );
     }
 

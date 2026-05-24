@@ -27,7 +27,7 @@ const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PU
 const supabase = createClient(supabaseUrl, supabaseKey);
 
 async function run() {
-  const { data, error } = await supabase.from('perfumes').select('id, name, user_id, concentration');
+  const { data } = await supabase.from('perfumes').select('id, name, user_id, concentration');
   console.log('ALL PERFUMES IN DB:');
   console.log(data);
   

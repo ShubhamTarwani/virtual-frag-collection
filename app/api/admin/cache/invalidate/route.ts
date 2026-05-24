@@ -60,8 +60,8 @@ export async function POST(req: Request) {
 
     return NextResponse.json({ error: 'Must provide either slug or all=true' }, { status: 400 })
 
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error('[Admin Cache Invalidate Error]', err)
-    return NextResponse.json({ error: err.message || 'Internal Server Error' }, { status: 500 })
+    return NextResponse.json({ error: (err instanceof Error ? err.message : String(err)) || 'Internal Server Error' }, { status: 500 })
   }
 }

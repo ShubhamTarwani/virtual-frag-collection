@@ -12,7 +12,7 @@ import type { UserPicks } from '@/lib/wardrobe/scoring'
 
 export default function WardrobeClient() {
   const [result, setResult] = useState<RecommendationResult | null>(null)
-  const [picks, setPicks] = useState<UserPicks>({})
+  const [picks] = useState<UserPicks>({})
 
   if (result) {
     return (

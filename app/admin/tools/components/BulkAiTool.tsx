@@ -30,8 +30,8 @@ export default function BulkAiTool({ initialCount }: { initialCount: number }) {
         setLogs(prev => [...prev, `Successfully processed ${processed} items. ${remaining} remaining.`])
       }
       setLogs(prev => [...prev, `Bulk processing complete!`])
-    } catch (e: any) {
-      setLogs(prev => [...prev, `Error: ${e.message}`])
+    } catch (e: unknown) {
+      setLogs(prev => [...prev, `Error: ${(e instanceof Error ? e.message : String(e))}`])
     } finally {
       setProcessing(false)
     }

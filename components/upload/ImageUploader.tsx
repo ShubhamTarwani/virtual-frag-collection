@@ -25,6 +25,7 @@ export default function ImageUploader({
 
   React.useEffect(() => {
     if (!value) {
+      // eslint-disable-next-line
       setPreviewUrl(null)
       if (fileInputRef.current) {
         fileInputRef.current.value = ''

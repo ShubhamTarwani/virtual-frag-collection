@@ -22,7 +22,7 @@ export async function GET(req: Request) {
 
     return NextResponse.json({ success: true })
 
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error('[queue-cleanup] Error:', err)
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 })
   }

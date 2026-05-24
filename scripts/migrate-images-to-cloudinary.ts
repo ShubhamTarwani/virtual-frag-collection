@@ -173,7 +173,7 @@ async function run() {
         successCount++;
 
       } catch (err: unknown) {
-        console.error(`   ❌ Failed to migrate perfume ID ${perfume.id}:`, err);
+        console.error(`   ❌ Failed to migrate perfume ID ${perfume.id}:`, err instanceof Error ? err.message : String(err));
         failCount++;
       } finally {
         // Clean up temp file

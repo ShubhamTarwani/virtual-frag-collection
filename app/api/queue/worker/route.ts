@@ -42,19 +42,19 @@ export async function GET(req: Request) {
         
         await supabaseAdmin.from('gemini_queue').update({
           status: 'done',
-          result: result as any,
+          result: result as unknown,
           completed_at: new Date().toISOString()
         }).eq('id', job.id)
         
         processed++
-      } catch (err: any) {
+      } catch (err: unknown) {
         errors++
         console.error(`[queue-worker] Job ${job.id} failed:`, err)
         
         const newStatus = job.attempts >= 3 ? 'error' : 'pending'
         await supabaseAdmin.from('gemini_queue').update({
           status: newStatus,
-          error: err.message || String(err),
+          error: (err instanceof Error ? err.message : String(err)) || String(err),
           completed_at: newStatus === 'error' ? new Date().toISOString() : null
         }).eq('id', job.id)
       }
@@ -70,7 +70,7 @@ export async function GET(req: Request) {
 
     return NextResponse.json({ processed, errors, pending_remaining: pendingRemaining || 0 })
 
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error('[queue-worker] Unexpected error:', err)
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 })
   }
