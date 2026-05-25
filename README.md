@@ -4,6 +4,9 @@ Welcome to the **Virtual Fragrance Shelf**, a premium, editorial-style inventory
 
 **Live Application:** [https://personal-perfume.vercel.app/](https://personal-perfume.vercel.app/)
 
+REddit post:
+https://www.reddit.com/r/DesiFragranceAddicts/comments/1tnejq8/made_a_free_fragrance_collection_tracker_for/?utm_source=share&utm_medium=web3x&utm_name=web3xcss&utm_term=1&utm_content=share_button
+
 ---
 
 ## 📸 Screenshots & Showcase
