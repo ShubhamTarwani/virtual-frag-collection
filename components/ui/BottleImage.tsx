@@ -34,7 +34,7 @@ export function BottleImage({ publicId, alt, width, height, className }: Props) 
       height={height}
       crop="fill"
       gravity="auto"
-      format="auto"       // serves WebP automatically
+      format="png"        // Force PNG to preserve transparency through Next.js proxy
       quality="auto"      // Cloudinary picks best quality
       removeBackground={true} // Add on-the-fly background removal
       className={className}

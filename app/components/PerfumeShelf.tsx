@@ -745,7 +745,18 @@ export default function PerfumeShelf() {
       ) : filtered.length === 0 ? (
         <div className="py-12 text-center text-sm text-zinc-500">No perfumes match the selected filter.</div>
       ) : viewMode === 'Masonry' ? (
-        <MasonryGrid perfumes={filtered} onSelect={setSelectedPerfume} />
+        <div className="space-y-12">
+          {groupEntries.map(([groupLabel, items]) => (
+            <div key={groupLabel} className="animate-fade-in">
+              <div className="mb-6 flex items-center justify-between border-b border-border-light pb-2">
+                <h3 className="text-lg font-serif font-semibold tracking-wider text-accent uppercase">
+                  {autoSort ? `${filterMode}: ${groupLabel}` : `Shelf ${groupLabel}`} <span className="text-muted ml-2 text-sm normal-case font-sans">({items.length} bottles)</span>
+                </h3>
+              </div>
+              <MasonryGrid perfumes={items} onSelect={setSelectedPerfume} />
+            </div>
+          ))}
+        </div>
       ) : viewMode === 'Master Wall' ? (
         <div className="master-wall-grid animate-fade-in">
           {filtered.map(p => (

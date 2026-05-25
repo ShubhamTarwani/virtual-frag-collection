@@ -1,8 +1,8 @@
 "use client"
 
 import React, { memo } from 'react'
-import Image from 'next/image'
 import { motion, AnimatePresence } from 'framer-motion'
+import { BottleImage } from '@/components/ui/BottleImage'
 import type { Perfume } from './PerfumeShelf'
 
 type Props = {
@@ -48,17 +48,17 @@ const MasonryGrid = memo(function MasonryGrid({ perfumes, onSelect }: Props) {
           >
             {/* Bottle image */}
             <div className="relative overflow-hidden">
-              {p.image_url ? (
-                <Image
-                  src={p.image_url}
-                  alt={p.name || 'Perfume bottle'}
-                  className="masonry-card-img"
-                  width={400}
-                  height={400}
-                  style={{ minHeight: '180px', maxHeight: '320px', width: '100%', height: 'auto', objectFit: 'contain' }}
-                  priority={i < 6}
-                  unoptimized
-                />
+              {p.image_url || p.cloudinary_public_id ? (
+                <div className="flex justify-center p-4 bg-surface-hover/50">
+                  <BottleImage
+                    publicId={p.cloudinary_public_id || p.image_url || ''}
+                    alt={p.name || 'Perfume bottle'}
+                    width={400}
+                    height={400}
+                    style={{ minHeight: '180px', maxHeight: '320px', width: '100%', height: 'auto', objectFit: 'contain' }}
+                    className="masonry-card-img drop-shadow-xl hover:drop-shadow-2xl transition-all duration-300 !bg-transparent"
+                  />
+                </div>
               ) : (
                 <div
                   className="masonry-card-img flex items-center justify-center"
