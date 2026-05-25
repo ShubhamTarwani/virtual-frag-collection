@@ -36,6 +36,7 @@ export function BottleImage({ publicId, alt, width, height, className }: Props) 
       gravity="auto"
       format="auto"       // serves WebP automatically
       quality="auto"      // Cloudinary picks best quality
+      removeBackground={true} // Add on-the-fly background removal
       className={className}
     />
   )
