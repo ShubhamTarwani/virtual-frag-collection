@@ -274,7 +274,7 @@ export async function getMostLikedFragrancesThisWeek(limit = 12) {
 
   const { data: fragrances } = await supabase
     .from('perfumes')
-    .select('id, name, brand, image_url, user_id')
+    .select('id, name, brand, image_url, cloudinary_public_id, user_id')
     .in('id', fragranceIds)
 
   return (fragrances ?? []).map(f => ({

@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import Image from 'next/image'
 import { getMostFollowedCollectors, getMostLikedFragrancesThisWeek, getTrendingCollectors } from '@/lib/supabase/social-queries'
+import { BottleImage } from '@/components/ui/BottleImage'
 
 export const revalidate = 60;
 
@@ -76,7 +77,7 @@ export default async function DiscoverPage() {
               {topFragrances.map((f) => (
                 <div key={f.id} className="rounded-2xl border border-border bg-surface overflow-hidden hover:border-accent/50 transition-colors" data-fragrance-card={true}>
                   <div className="aspect-square bg-surface-hover flex items-center justify-center p-4 relative">
-                    {f.image_url ? <Image src={f.image_url} alt={f.name || ''} fill unoptimized className="object-contain p-4" /> : <div className="text-3xl text-muted/30">🧴</div>}
+                    <BottleImage publicId={f.cloudinary_public_id || f.image_url || '/placeholder-bottle.png'} alt={f.name || ''} width={200} height={200} className="object-contain p-4 h-full w-full" />
                   </div>
                   <div className="p-3">
                     <div className="font-bold text-xs text-foreground truncate">{f.name || 'Unknown'}</div>

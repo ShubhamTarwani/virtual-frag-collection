@@ -8,6 +8,7 @@ import LikeButton from '@/app/components/LikeButton'
 import PerfumeShelf from '@/app/components/PerfumeShelf'
 import BioEditor from '@/app/components/BioEditor'
 import AccountNumberBadge from '@/components/ui/AccountNumberBadge'
+import { BottleImage } from '@/components/ui/BottleImage'
 import { Metadata } from 'next'
 
 export async function generateMetadata({ params }: { params: Promise<{ username: string }> }): Promise<Metadata> {
@@ -129,11 +130,7 @@ export default async function ProfilePage(props: { params: Promise<{ username: s
             {fragrancesWithLikes.map((f) => (
               <div key={f.id} className="rounded-2xl border border-border bg-surface overflow-hidden group hover:border-accent/50 transition-colors">
                 <div className="aspect-square bg-surface-hover flex items-center justify-center p-4">
-                  {f.image_url ? (
-                    <img src={f.image_url} alt={f.name || 'Perfume'} className="h-full w-full object-contain" />
-                  ) : (
-                    <div className="text-3xl text-muted/30">🧴</div>
-                  )}
+                  <BottleImage publicId={f.cloudinary_public_id || f.image_url || '/placeholder-bottle.png'} alt={f.name || 'Perfume'} width={200} height={200} className="h-full w-full object-contain" />
                 </div>
                 <div className="p-3">
                   <div className="font-bold text-xs text-foreground truncate">{f.name || 'Unknown'}</div>

@@ -1,6 +1,5 @@
 "use client"
 import React from 'react'
-import { CldImage } from 'next-cloudinary'
 
 type Props = {
   publicId: string
@@ -10,12 +9,17 @@ type Props = {
   className?: string
 }
 
-export function BottleImage({ publicId, alt, width, height, className }: Props) {
-  // Fallback for old legacy Supabase URLs (must render as plain <img>)
-  if (publicId?.startsWith('http://') || publicId?.startsWith('https://')) {
+export function BottleImage({ publicId, alt, width = 200, height = 300, className }: Props) {
+  const cloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME || 'dwk3hglti';
+  
+  let isFetch = false;
+  let finalSrc = publicId || '/placeholder-bottle.png';
+
+  // Handle local placeholder image
+  if (finalSrc === '/placeholder-bottle.png') {
     return (
       <img
-        src={publicId}
+        src={finalSrc}
         alt={alt}
         width={width}
         height={height}
@@ -25,19 +29,44 @@ export function BottleImage({ publicId, alt, width, height, className }: Props) 
     )
   }
 
-  // Cloudinary managed image
+  // Handle full URLs instead of public IDs
+  if (finalSrc.startsWith('http')) {
+    // If it's a Cloudinary URL, extract the public ID to process it natively
+    const cloudinaryMatch = finalSrc.match(/\/upload\/(?:v\d+\/)?([^.]+)/);
+    if (cloudinaryMatch && finalSrc.includes('res.cloudinary.com')) {
+      // Decode URI component in case the public ID has spaces encoded as %20
+      finalSrc = decodeURIComponent(cloudinaryMatch[1]);
+    } else {
+      // It's a non-Cloudinary external URL (like Supabase storage). 
+      // Use Cloudinary's fetch API to optimize it and remove the background anyway!
+      isFetch = true;
+    }
+  }
+
+  // Build the transformation chain manually:
+  // 1. c_limit,w_1000: Downscale the source image to under 10MB first to fit Cloudinary's AI limit
+  // 2. e_background_removal: Apply the AI background removal on the resized source
+  // 3. a_0: Cache buster to bypass Cloudinary CDN cache
+  // 4. c_fill,g_auto,w_<width>,h_<height>: Finally, crop and scale to the layout container dimensions
+  // 5. f_png: Output as a transparent PNG
+  // 6. q_auto: Automatic quality optimization
+  const transformations = `c_limit,w_1000/e_background_removal/a_0/c_fill,g_auto,w_${width},h_${height}/f_png/q_auto`;
+
+  let imageUrl = '';
+  if (isFetch) {
+    imageUrl = `https://res.cloudinary.com/${cloudName}/image/fetch/${transformations}/${encodeURIComponent(finalSrc)}`;
+  } else {
+    imageUrl = `https://res.cloudinary.com/${cloudName}/image/upload/${transformations}/v1/${finalSrc}`;
+  }
+
   return (
-    <CldImage
-      src={publicId}
+    <img
+      src={imageUrl}
       alt={alt}
       width={width}
       height={height}
-      crop="fill"
-      gravity="auto"
-      format="png"        // Force PNG to preserve transparency through Next.js proxy
-      quality="auto"      // Cloudinary picks best quality
-      removeBackground={true} // Add on-the-fly background removal
       className={className}
+      loading="lazy"
     />
   )
 }

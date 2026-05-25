@@ -27,6 +27,7 @@ export type Perfume = {
   category: string | null
   concentration: string | null
   image_url: string | null
+  cloudinary_public_id?: string | null
   shelf_row: number | null
   occasion: string | null
   notes: string | null
