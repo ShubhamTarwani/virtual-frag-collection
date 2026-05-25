@@ -1,12 +1,10 @@
 import Link from 'next/link'
 import Image from 'next/image'
-import dynamic from 'next/dynamic'
 import { getCurrentProfile } from '@/lib/supabase/queries'
 import { getMostFollowedCollectors } from '@/lib/supabase/social-queries'
 import ScrollReveal from '@/components/ui/ScrollReveal'
 import { Library, Sparkles, Users } from 'lucide-react'
-
-const HeroParticles = dynamic(() => import('@/components/ui/HeroParticles'), { ssr: false })
+import HeroParticles from '@/components/ui/HeroParticles'
 
 export const revalidate = 60;
 
