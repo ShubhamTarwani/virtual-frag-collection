@@ -55,8 +55,7 @@ const MasonryGrid = memo(function MasonryGrid({ perfumes, onSelect }: Props) {
                     alt={p.name || 'Perfume bottle'}
                     width={400}
                     height={400}
-                    style={{ minHeight: '180px', maxHeight: '320px', width: '100%', height: 'auto', objectFit: 'contain' }}
-                    className="masonry-card-img drop-shadow-xl hover:drop-shadow-2xl transition-all duration-300 !bg-transparent"
+                    className="masonry-card-img drop-shadow-xl hover:drop-shadow-2xl transition-all duration-300 !bg-transparent min-h-[180px] max-h-[320px] w-full h-auto object-contain"
                   />
                 </div>
               ) : (
