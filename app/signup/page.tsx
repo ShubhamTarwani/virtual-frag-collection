@@ -88,6 +88,22 @@ export default function SignupPage() {
                 />
               </div>
 
+              <div className="flex items-start pt-2">
+                <input
+                  id="signup-agree"
+                  name="agree"
+                  type="checkbox"
+                  required
+                  className="mt-0.5 h-4 w-4 rounded border-border-light bg-surface text-accent focus:ring-accent focus:ring-offset-background"
+                />
+                <label htmlFor="signup-agree" className="ml-2 block text-xs text-muted">
+                  I agree to the{' '}
+                  <Link href="/terms" className="text-accent hover:underline" target="_blank">Terms of Service</Link>
+                  {' '}and{' '}
+                  <Link href="/privacy" className="text-accent hover:underline" target="_blank">Privacy Policy</Link>.
+                </label>
+              </div>
+
               <button
                 type="submit"
                 disabled={pending}

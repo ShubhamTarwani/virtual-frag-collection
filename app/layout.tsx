@@ -22,10 +22,30 @@ const playfair = Playfair_Display({
 });
 
 export const metadata: Metadata = {
-  title: "Virtual Fragrance Shelf — Community",
-  description: "A social platform for fragrance collectors. Browse, share, and discover perfume collections.",
+  title: {
+    template: '%s | Virtual Fragrance Shelf',
+    default: 'Virtual Fragrance Shelf — Community',
+  },
+  description: "A premium social platform for fragrance collectors. Browse, share, and discover perfume collections with AI wardrobe assistance.",
+  metadataBase: new URL('https://personal-perfume.vercel.app'),
+  openGraph: {
+    title: 'Virtual Fragrance Shelf',
+    description: "A premium social platform for fragrance collectors. Browse, share, and discover perfume collections.",
+    url: 'https://personal-perfume.vercel.app',
+    siteName: 'Virtual Fragrance Shelf',
+    locale: 'en_US',
+    type: 'website',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Virtual Fragrance Shelf',
+    description: "A premium social platform for fragrance collectors. Browse, share, and discover perfume collections.",
+  },
+  robots: {
+    index: true,
+    follow: true,
+  }
 };
-
 export default function RootLayout({
   children,
 }: Readonly<{

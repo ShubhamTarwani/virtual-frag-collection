@@ -14,10 +14,13 @@ export default function Footer() {
           </div>
 
           {/* Center Column */}
-          <div className="flex flex-col md:flex-row items-center gap-4 md:gap-8 text-xs text-muted">
+          <div className="flex flex-wrap justify-center items-center gap-4 md:gap-8 text-xs text-muted">
             <Link href="/discover" className="hover:text-[rgba(200,170,100,0.8)] transition-colors">Discover</Link>
             <Link href="/feed" className="hover:text-[rgba(200,170,100,0.8)] transition-colors">Feed</Link>
             <Link href="/wardrobe" className="hover:text-[rgba(200,170,100,0.8)] transition-colors">Wardrobe</Link>
+            <Link href="/about" className="hover:text-[rgba(200,170,100,0.8)] transition-colors">About</Link>
+            <Link href="/privacy" className="hover:text-[rgba(200,170,100,0.8)] transition-colors">Privacy</Link>
+            <Link href="/terms" className="hover:text-[rgba(200,170,100,0.8)] transition-colors">Terms</Link>
           </div>
 
           {/* Right Column */}
