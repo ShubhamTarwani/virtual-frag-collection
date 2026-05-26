@@ -1,7 +1,7 @@
 "use client"
 /* eslint-disable @next/next/no-img-element */
 
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import { type User } from '@supabase/supabase-js'
 import { createClient } from '@/utils/supabase/client'
 import { motion } from 'framer-motion'
@@ -33,10 +33,6 @@ export type Perfume = {
 }
 
 const filterModes = ['Type', 'Occasion', 'Smell', 'Notes'] as const
-const typeOptions = ['All', 'Niche', 'Designer', 'Middle Eastern', 'Mass Produced', 'Clones', 'Liquid Deodorants', 'Other']
-const occasionOptions = ['All', 'Date Night', 'Meeting', 'Casual', 'Evening', 'Office', 'Party']
-const smellOptions = ['All', 'Gourmand', 'Fresh', 'Aquatic', 'Floral', 'Woody', 'Oriental', 'Spicy']
-const notesOptions = ['All', 'Vanilla', 'Honey', 'Oud', 'Rose', 'Citrus', 'Amber', 'Leather', 'Musk', 'Sandalwood']
 
 const designerBrands = new Set([
   'armani', 'calvin klein', 'ck', 'davidoff', 'dior', 'versace', 'paco rabanne', 'paco',
@@ -117,17 +113,25 @@ function classifyNote(p: Perfume) {
   return 'Other'
 }
 
-function getFilterOptions(mode: typeof filterModes[number]) {
+function getDerivedValueForMode(p: Perfume, mode: typeof filterModes[number]) {
   switch (mode) {
     case 'Type':
-      return typeOptions
+      return classifyPerfume(p)
     case 'Occasion':
-      return occasionOptions
+      return classifyOccasion(p)
     case 'Smell':
-      return smellOptions
+      return classifySmell(p)
     case 'Notes':
-      return notesOptions
+      return classifyNote(p)
   }
+}
+
+function buildDynamicOptions(perfumes: Perfume[], mode: typeof filterModes[number]): string[] {
+  const values = perfumes.map(p => getDerivedValueForMode(p, mode)).filter(Boolean)
+  const unique = [...new Set(values)]
+  // Sort by the predefined sortOrder so chips appear in a consistent order
+  unique.sort((a, b) => (sortOrder[a] ?? 50) - (sortOrder[b] ?? 50))
+  return unique.length > 0 ? ['All', ...unique] : ['All']
 }
 
 function getDerivedValue(p: Perfume, mode: typeof filterModes[number]) {
@@ -446,7 +450,14 @@ export default function PerfumeShelf() {
     return (sortOrder[a[0]] ?? 50) - (sortOrder[b[0]] ?? 50)
   })
 
-  const activeOptions = getFilterOptions(filterMode)
+  const activeOptions = useMemo(() => buildDynamicOptions(perfumes, filterMode), [perfumes, filterMode])
+
+  // Reset active filter if it no longer exists in the dynamic options
+  useEffect(() => {
+    if (activeFilter !== 'All' && !activeOptions.includes(activeFilter)) {
+      setActiveFilter('All')
+    }
+  }, [activeOptions, activeFilter])
 
   return (
     <div className="w-full space-y-8">
@@ -709,25 +720,27 @@ export default function PerfumeShelf() {
         </div>
       </div>
 
-      <div className="mb-8 flex flex-wrap gap-2 border-b border-border pb-4">
-        {activeOptions.map((option) => (
-          <button
-            key={option}
-            onClick={() => setActiveFilter(option)}
-            className={`relative rounded-full px-4 py-1.5 text-xs font-medium transition-colors ${activeFilter === option ? 'text-accent font-semibold' : 'text-muted hover:text-foreground'}`}
-          >
-            {activeFilter === option && (
-              <motion.div
-                layoutId="activeFilterPill"
-                className="absolute inset-0 bg-accent/10 border border-accent/30 rounded-full"
-                initial={false}
-                transition={{ type: "spring", stiffness: 400, damping: 30 }}
-              />
-            )}
-            <span className="relative z-10">{option}</span>
-          </button>
-        ))}
-      </div>
+      {activeOptions.length > 1 && (
+        <div className="mb-8 flex flex-wrap gap-2 border-b border-border pb-4">
+          {activeOptions.map((option) => (
+            <button
+              key={option}
+              onClick={() => setActiveFilter(option)}
+              className={`relative rounded-full px-4 py-1.5 text-xs font-medium transition-colors ${activeFilter === option ? 'text-accent font-semibold' : 'text-muted hover:text-foreground'}`}
+            >
+              {activeFilter === option && (
+                <motion.div
+                  layoutId="activeFilterPill"
+                  className="absolute inset-0 bg-accent/10 border border-accent/30 rounded-full"
+                  initial={false}
+                  transition={{ type: "spring", stiffness: 400, damping: 30 }}
+                />
+              )}
+              <span className="relative z-10">{option}</span>
+            </button>
+          ))}
+        </div>
+      )}
 
       <div className={`transition-all duration-500 origin-top ${selectedPerfume ? 'main-content-scaled' : 'main-content-wrapper'}`}>
       {loading ? (
