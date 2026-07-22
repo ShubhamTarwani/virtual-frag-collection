@@ -8,7 +8,7 @@ import { getErrorStatus } from '@/lib/gemini/client';
 
 export async function POST(req: Request) {
   try {
-    const { name, brand, isLiquidDeo, skipCacheWrite } = await req.json();
+    const { name, brand, isLiquidDeo, skipCacheWrite, forceRefresh } = await req.json();
 
     if (!name || !brand) {
       return NextResponse.json(
@@ -51,12 +51,16 @@ export async function POST(req: Request) {
       process.env.SUPABASE_SERVICE_ROLE_KEY!
     );
 
-    const { data: masterMatch } = await supabaseAdmin
-      .from('master_fragrances')
-      .select('*')
-      .ilike('name', name.trim())
-      .ilike('house', brand.trim())
-      .maybeSingle();
+    let masterMatch = null;
+    if (!isLiquidDeo) {
+      const { data } = await supabaseAdmin
+        .from('master_fragrances')
+        .select('*')
+        .ilike('name', name.trim())
+        .ilike('house', brand.trim())
+        .maybeSingle();
+      masterMatch = data;
+    }
 
     if (masterMatch) {
       return NextResponse.json({
@@ -75,6 +79,7 @@ export async function POST(req: Request) {
         userId: user.id,
         isLiquidDeo,
         skipCacheWrite,
+        forceRefresh,
       });
       return NextResponse.json(data);
     } catch (apiErr: unknown) {

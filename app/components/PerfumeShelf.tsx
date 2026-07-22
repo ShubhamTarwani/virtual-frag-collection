@@ -72,7 +72,7 @@ function classifyPerfume(p: Perfume) {
 
   if (category.includes('liquid deodorant') || category.includes('liquid deodrant') || name.includes('liquid deodorant') || name.includes('liquid deodrant') || category.includes('dry down') || name.includes('dry down')) return 'Liquid Deodorants'
 
-  if (cloneBrands.has(brand) || name.includes('clone') || name.includes('dupe') || name.includes('alt')) return 'Clones'
+  if (cloneBrands.has(brand) || /\b(clone|dupe|alt)\b/.test(name)) return 'Clones'
   
   if (middleEasternBrands.has(brand) || category.includes('middle eastern') || category.includes('oriental')) return 'Middle Eastern'
   
@@ -213,7 +213,7 @@ type ShelfSectionProps = {
 }
 
 function ShelfSection({ groupLabel, items, filterMode, autoSort, user, setSelectedPerfume, startEditing, deletePerfume }: ShelfSectionProps) {
-  const [isExpanded, setIsExpanded] = useState(false)
+  const [isExpanded, setIsExpanded] = useState(true)
   const [cols, setCols] = useState(5)
   const gridRef  = useRef<HTMLDivElement>(null)
   const sectionRef = useRef<HTMLDivElement>(null)
@@ -248,8 +248,9 @@ function ShelfSection({ groupLabel, items, filterMode, autoSort, user, setSelect
     : `Shelf ${groupLabel}`
 
   // Collapsed height ≈ one card row (aspect-ratio 3/4 card + name text + edit buttons + gap)
-  const COLLAPSED_HEIGHT = 420
-  const hasOverflow = items.length > cols
+  const COLLAPSED_HEIGHT = 520
+  const isSingleRow = items.length <= cols;
+  const hasOverflow = items.length > cols;
 
   return (
     <div ref={sectionRef} className="w-full overflow-visible rounded-2xl border border-border bg-surface/50 p-6 shadow-sm animate-fade-in">
@@ -267,9 +268,13 @@ function ShelfSection({ groupLabel, items, filterMode, autoSort, user, setSelect
           display: 'grid',
           gridTemplateColumns: `repeat(${cols}, 1fr)`,
           gap: '16px',
-          overflow: 'hidden',
-          maxHeight: isExpanded ? '9999px' : `${COLLAPSED_HEIGHT}px`,
-          transition: 'max-height 0.45s cubic-bezier(0.4, 0, 0.2, 1)',
+          overflow: isSingleRow ? 'visible' : 'hidden',
+          maxHeight: isSingleRow || isExpanded 
+            ? '9999px' 
+            : `${COLLAPSED_HEIGHT}px`,
+          transition: isSingleRow 
+            ? 'none' 
+            : 'max-height 0.45s cubic-bezier(0.4, 0, 0.2, 1)',
         }}
       >
         {items.filter(p => p != null && p.id != null).map((p) => (
@@ -301,25 +306,23 @@ function ShelfSection({ groupLabel, items, filterMode, autoSort, user, setSelect
               <div className="card-name-clamp font-bold text-foreground">{p.name || 'Unknown'}</div>
               <div className="text-muted truncate">{p.brand || ''}</div>
               <div className="text-accent-dark text-xs mt-0.5">{p.concentration || ''}</div>
-              {user ? (
-                <div className="mt-3 flex flex-wrap gap-2">
-                  <button
-                    onClick={(e) => { e.stopPropagation(); startEditing(p) }}
-                    className="rounded-full border border-border-light bg-surface px-3 py-1 text-xs text-foreground transition hover:border-accent hover:text-accent"
-                  >Edit</button>
-                  <button
-                    onClick={(e) => { e.stopPropagation(); deletePerfume(p.id) }}
-                    className="rounded-full border border-danger/30 bg-danger/10 px-3 py-1 text-xs text-danger transition hover:bg-danger/20"
-                  >Delete</button>
-                </div>
-              ) : null}
+              <div className="mt-3 flex flex-wrap gap-2">
+                <button
+                  onClick={(e) => { e.stopPropagation(); startEditing?.(p) }}
+                  className="rounded-full border border-border-light bg-surface px-3 py-1 text-xs text-foreground transition hover:border-accent hover:text-accent"
+                >Edit</button>
+                <button
+                  onClick={(e) => { e.stopPropagation(); deletePerfume?.(p.id) }}
+                  className="rounded-full border border-danger/30 bg-danger/10 px-3 py-1 text-xs text-danger transition hover:bg-danger/20"
+                >Delete</button>
+              </div>
             </div>
           </div>
         ))}
       </div>
 
       {/* Gradient fade — hints at hidden rows when collapsed */}
-      {hasOverflow && (
+      {hasOverflow && !isExpanded && (
         <div
           aria-hidden="true"
           style={{
@@ -329,18 +332,18 @@ function ShelfSection({ groupLabel, items, filterMode, autoSort, user, setSelect
             background: 'linear-gradient(to bottom, transparent, hsl(222 20% 8%))',
             pointerEvents: 'none',
             zIndex: 1,
-            opacity: isExpanded ? 0 : 1,
+            opacity: 1,
             transition: 'opacity 0.3s ease',
           }}
         />
       )}
 
       {/* Expand / collapse toggle — only when items overflow one row */}
-      {hasOverflow && (
+      {!isSingleRow && hasOverflow && (
         <button
           onClick={handleToggle}
           className="shelf-expand-btn"
-          aria-label={isExpanded ? 'Show less' : `Show all ${items.length}`}
+          aria-label={isExpanded ? 'Collapse' : `Show all ${items.length}`}
         >
           <svg
             width="20"
@@ -361,7 +364,7 @@ function ShelfSection({ groupLabel, items, filterMode, autoSort, user, setSelect
               strokeLinejoin="round"
             />
           </svg>
-          <span>{isExpanded ? 'Show less' : `Show all ${items.length}`}</span>
+          <span>{isExpanded ? 'Collapse' : `Show all ${items.length}`}</span>
         </button>
       )}
     </div>
@@ -383,6 +386,7 @@ export default function PerfumeShelf() {
   const [authError, setAuthError] = useState('')
   const [viewMode, setViewMode] = useState<'Categorized' | 'Master Wall' | 'Masonry'>('Categorized')
   const [isAutofilling, setIsAutofilling] = useState(false)
+  const [toggledDeo, setToggledDeo] = useState(false)
 
   const [selectedPerfume, setSelectedPerfume] = useState<Perfume | null>(null)
   const [editId, setEditId] = useState<string | null>(null)
@@ -411,9 +415,16 @@ export default function PerfumeShelf() {
       const res = await fetch('/api/autofill', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: formValues.name, brand: formValues.brand, isLiquidDeo: formValues.isLiquidDeo })
+        body: JSON.stringify({ 
+          name: formValues.name, 
+          brand: formValues.brand, 
+          isLiquidDeo: formValues.isLiquidDeo,
+          forceRefresh: toggledDeo
+        })
       })
       
+      setToggledDeo(false)
+
       const data = await res.json()
       
       if (!res.ok) {
@@ -789,6 +800,7 @@ export default function PerfumeShelf() {
                       <input type="checkbox" checked={formValues.isLiquidDeo as boolean} onChange={(e) => {
                         const checked = e.target.checked;
                         setFormField('isLiquidDeo', checked);
+                        setToggledDeo(true);
                         if (checked && !formValues.category) {
                           setFormField('category', 'Liquid Deodorant');
                         }
@@ -1116,7 +1128,7 @@ export default function PerfumeShelf() {
               </div>
 
               {/* Edit/Delete overlay (keep this!) */}
-              {user && (
+              {startEditing && deletePerfume && (
                 <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-end justify-center gap-2 pb-3 bg-gradient-to-t from-black/60 to-transparent z-10">
                   <button onClick={(e) => { e.stopPropagation(); startEditing(p); }} className="text-xs px-3 py-1 rounded-full bg-white/10 hover:bg-white/20 text-white shadow-sm transition-colors border border-white/20">Edit</button>
                   <button onClick={(e) => { e.stopPropagation(); deletePerfume(p.id); }} className="text-xs px-3 py-1 rounded-full bg-red-500/30 hover:bg-red-500/50 text-red-100 shadow-sm transition-colors border border-red-500/30">Delete</button>

@@ -90,7 +90,7 @@ const MasonryGrid = memo(function MasonryGrid({ perfumes, onSelect, user, onEdit
               <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent opacity-0 hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
               
               {/* Edit/Delete — only on hover, Wall view */}
-              {user && onEdit && onDelete && (
+              {onEdit && onDelete && (
                 <div className="absolute inset-0 opacity-0 hover:opacity-100 transition-opacity duration-200 flex items-end justify-center gap-2 pb-3 bg-gradient-to-t from-black/60 to-transparent">
                   <button onClick={(e) => { e.stopPropagation(); onEdit(p); }} className="text-xs px-3 py-1 rounded-full bg-white/10 hover:bg-white/20 text-white shadow-sm transition-colors border border-white/20">Edit</button>
                   <button onClick={(e) => { e.stopPropagation(); onDelete(p.id); }} className="text-xs px-3 py-1 rounded-full bg-red-500/30 hover:bg-red-500/50 text-red-100 shadow-sm transition-colors border border-red-500/30">Delete</button>
