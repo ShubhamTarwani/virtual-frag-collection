@@ -10,7 +10,7 @@ export async function getFragranceInfo(
   brand: string,
   name: string,
   concentration?: string,
-  opts?: { forceRefresh?: boolean; isLiquidDeo?: boolean }
+  opts?: { forceRefresh?: boolean; isLiquidDeo?: boolean; skipCacheWrite?: boolean }
 ) {
   const cookieStore = await cookies()
   const supabase = createClient(cookieStore)
@@ -36,5 +36,6 @@ export async function getFragranceInfo(
     forceRefresh: opts?.forceRefresh,
     userId: user.id,
     isLiquidDeo: opts?.isLiquidDeo,
+    skipCacheWrite: opts?.skipCacheWrite,
   })
 }

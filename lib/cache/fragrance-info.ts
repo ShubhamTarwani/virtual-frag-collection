@@ -60,10 +60,20 @@ export async function getFragranceInfo(
   brand: string,
   name: string,
   concentration?: string,
-  opts?: { forceRefresh?: boolean; userId?: string; isLiquidDeo?: boolean }
+  opts?: { forceRefresh?: boolean; userId?: string; isLiquidDeo?: boolean; skipCacheWrite?: boolean }
 ): Promise<CachedInfo> {
-  const slug = canonicalSlug(brand, name, concentration)
+  // Bug 1 + Bug 2 fix: isLiquidDeo is now part of the cache key so that
+  // "Sauvage (deo)" and "Sauvage (EDP)" never share a cache entry.
+  const slug = canonicalSlug(brand, name, concentration, opts?.isLiquidDeo)
   const forceRefresh = opts?.forceRefresh ?? false
+
+  // Dev-mode cache key audit log — helps verify different (name, isLiquidDeo)
+  // combinations produce different keys before closing a bug report.
+  if (process.env.NODE_ENV === 'development') {
+    console.log(
+      `[cache/fragrance-info] key="${slug}" isLiquidDeo=${!!opts?.isLiquidDeo} brand="${brand}" name="${name}"`
+    )
+  }
 
   if (!forceRefresh) {
     // Check cache
@@ -194,6 +204,19 @@ Return ONLY the raw JSON object, without markdown formatting or code blocks.`
       userPrompt: prompt,
       responseSchema: fragranceInfoSchema,
     })
+
+    // Cache invalidation on type override:
+    // If the caller set skipCacheWrite (e.g. user manually changed the type
+    // after an initial scan), we return the fresh AI result but do NOT persist
+    // it to Supabase.  This prevents the override from being cached and
+    // returned to a future lookup that expects the original type.
+    if (opts?.skipCacheWrite) {
+      // Still release any lock we grabbed, but do not write the data row.
+      await supabaseAdmin.from('fragrance_info_cache').update({
+        locked_until: null,
+      }).eq('canonical_slug', slug)
+      return fetchedData
+    }
 
     // Upsert the data
     const fetchedAt = new Date()

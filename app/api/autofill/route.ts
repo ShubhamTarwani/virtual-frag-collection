@@ -8,7 +8,7 @@ import { getErrorStatus } from '@/lib/gemini/client';
 
 export async function POST(req: Request) {
   try {
-    const { name, brand, isLiquidDeo } = await req.json();
+    const { name, brand, isLiquidDeo, skipCacheWrite } = await req.json();
 
     if (!name || !brand) {
       return NextResponse.json(
@@ -74,6 +74,7 @@ export async function POST(req: Request) {
       const data = await getFragranceInfo(brand, name, undefined, {
         userId: user.id,
         isLiquidDeo,
+        skipCacheWrite,
       });
       return NextResponse.json(data);
     } catch (apiErr: unknown) {
