@@ -1,7 +1,7 @@
 "use client"
 /* eslint-disable @next/next/no-img-element */
 
-import React, { useEffect, useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { type User } from '@supabase/supabase-js'
 import { createClient } from '@/utils/supabase/client'
 import { motion } from 'framer-motion'
@@ -30,6 +30,11 @@ export type Perfume = {
   derivedOccasion?: string
   derivedSmell?: string
   derivedNote?: string
+  // Decant / Tester fields
+  is_decant?:        boolean
+  decant_volume_ml?: number | null
+  decant_source?:    string | null
+  decant_finished?:  boolean
 }
 
 const filterModes = ['Type', 'Occasion', 'Smell', 'Notes'] as const
@@ -56,6 +61,11 @@ const middleEasternBrands = new Set([
 const cloneBrands = new Set(['dupe', 'alt', 'clone', 'xxx collection', 'dossier', 'dua', 'alexandria', 'oakcha'])
 
 function classifyPerfume(p: Perfume) {
+  // Decants short-circuit TYPE classification only.
+  // Smell / Notes / Occasion classification runs normally so decants
+  // still appear in those filter views.
+  if (p.is_decant) return 'Decant'
+
   const brand = (p.brand || '').toLowerCase()
   const name = (p.name || '').toLowerCase()
   const category = (p.category || '').toLowerCase()
@@ -159,6 +169,7 @@ const sortOrder: Record<string, number> = {
   'Middle Eastern': 3,
   'Mass Produced': 4,
   Clones: 5,
+  Decant: 5.5,
   'Liquid Deodorants': 6,
   Gourmand: 7,
   Fresh: 8,
@@ -185,6 +196,178 @@ const sortOrder: Record<string, number> = {
   Other: 99,
 }
 
+/* ─────────────────────────────────────────────────────────────────
+   ShelfSection — collapsible/expandable shelf group with
+   ResizeObserver-driven column detection and max-height animation.
+   Each section owns its own isExpanded state independently.
+───────────────────────────────────────────────────────────────── */
+type ShelfSectionProps = {
+  groupLabel: string
+  items: Perfume[]
+  filterMode: typeof filterModes[number]
+  autoSort: boolean
+  user: User | null
+  setSelectedPerfume: (p: Perfume | null) => void
+  startEditing: (p: Perfume) => void
+  deletePerfume: (id: string) => Promise<void>
+}
+
+function ShelfSection({ groupLabel, items, filterMode, autoSort, user, setSelectedPerfume, startEditing, deletePerfume }: ShelfSectionProps) {
+  const [isExpanded, setIsExpanded] = useState(false)
+  const [cols, setCols] = useState(5)
+  const gridRef  = useRef<HTMLDivElement>(null)
+  const sectionRef = useRef<HTMLDivElement>(null)
+
+  // Detect rendered column count via ResizeObserver
+  useEffect(() => {
+    const el = gridRef.current
+    if (!el) return
+    const observer = new ResizeObserver(() => {
+      const w = el.offsetWidth
+      if (w < 600)       setCols(2)
+      else if (w < 900)  setCols(3)
+      else if (w < 1200) setCols(4)
+      else               setCols(5)
+    })
+    observer.observe(el)
+    return () => observer.disconnect()
+  }, [])
+
+  const handleToggle = () => {
+    if (isExpanded) {
+      // After collapsing, scroll section header back into view
+      setTimeout(() => {
+        sectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      }, 460) // matches 0.45s CSS transition
+    }
+    setIsExpanded(prev => !prev)
+  }
+
+  const sectionTitle = autoSort
+    ? groupLabel === 'Decant' ? 'Decants / Testers' : `${filterMode}: ${groupLabel}`
+    : `Shelf ${groupLabel}`
+
+  // Collapsed height ≈ one card row (aspect-ratio 3/4 card + name text + edit buttons + gap)
+  const COLLAPSED_HEIGHT = 420
+  const hasOverflow = items.length > cols
+
+  return (
+    <div ref={sectionRef} className="w-full overflow-visible rounded-2xl border border-border bg-surface/50 p-6 shadow-sm animate-fade-in">
+      {/* Section header */}
+      <div className="mb-6 flex items-center justify-between border-b border-white/[0.08] pb-2">
+        <div className="text-sm font-semibold tracking-wider text-accent uppercase">
+          {sectionTitle} <span className="text-muted ml-2">({items.length})</span>
+        </div>
+      </div>
+
+      <div
+        ref={gridRef}
+        className="shelf-grid"
+        style={{
+          display: 'grid',
+          gridTemplateColumns: `repeat(${cols}, 1fr)`,
+          gap: '16px',
+          overflow: 'hidden',
+          maxHeight: isExpanded ? '9999px' : `${COLLAPSED_HEIGHT}px`,
+          transition: 'max-height 0.45s cubic-bezier(0.4, 0, 0.2, 1)',
+        }}
+      >
+        {items.filter(p => p != null && p.id != null).map((p) => (
+          <div
+            key={p.id}
+            className={`w-full group touch-card cursor-pointer${p.decant_finished ? ' card-decant-finished' : ''}`}
+            onClick={() => setSelectedPerfume(p)}
+            data-fragrance-card={true}
+          >
+            <div
+              className="relative w-full overflow-hidden rounded-xl bg-surface-hover/80 shadow-lg transition-all duration-300 group-hover:shadow-[0_8px_30px_rgb(0,0,0,0.12)] border border-border-light group-hover:border-accent"
+              style={{ aspectRatio: '3/4' }}
+            >
+              <BottleImage
+                publicId={p.cloudinary_public_id || p.image_url || '/placeholder-bottle.png'}
+                alt={p.name || p.brand || 'Perfume'}
+                width={200}
+                height={300}
+                className="absolute inset-0 h-full w-full object-contain p-2"
+              />
+              {p.is_decant && (
+                <div className={`decant-badge${p.decant_finished ? ' finished' : ''}`}>
+                  🧪 {p.decant_volume_ml != null ? `${p.decant_volume_ml}ml` : 'Decant'}
+                  {p.decant_finished && ' · Empty'}
+                </div>
+              )}
+            </div>
+            <div className="mt-3 text-sm">
+              <div className="card-name-clamp font-bold text-foreground">{p.name || 'Unknown'}</div>
+              <div className="text-muted truncate">{p.brand || ''}</div>
+              <div className="text-accent-dark text-xs mt-0.5">{p.concentration || ''}</div>
+              {user ? (
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <button
+                    onClick={(e) => { e.stopPropagation(); startEditing(p) }}
+                    className="rounded-full border border-border-light bg-surface px-3 py-1 text-xs text-foreground transition hover:border-accent hover:text-accent"
+                  >Edit</button>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); deletePerfume(p.id) }}
+                    className="rounded-full border border-danger/30 bg-danger/10 px-3 py-1 text-xs text-danger transition hover:bg-danger/20"
+                  >Delete</button>
+                </div>
+              ) : null}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Gradient fade — hints at hidden rows when collapsed */}
+      {hasOverflow && (
+        <div
+          aria-hidden="true"
+          style={{
+            position: 'relative',
+            marginTop: '-64px',
+            height: '64px',
+            background: 'linear-gradient(to bottom, transparent, hsl(222 20% 8%))',
+            pointerEvents: 'none',
+            zIndex: 1,
+            opacity: isExpanded ? 0 : 1,
+            transition: 'opacity 0.3s ease',
+          }}
+        />
+      )}
+
+      {/* Expand / collapse toggle — only when items overflow one row */}
+      {hasOverflow && (
+        <button
+          onClick={handleToggle}
+          className="shelf-expand-btn"
+          aria-label={isExpanded ? 'Show less' : `Show all ${items.length}`}
+        >
+          <svg
+            width="20"
+            height="20"
+            viewBox="0 0 20 20"
+            fill="none"
+            aria-hidden="true"
+            style={{
+              transform: isExpanded ? 'rotate(180deg)' : 'rotate(0deg)',
+              transition: 'transform 0.35s cubic-bezier(0.4, 0, 0.2, 1)',
+            }}
+          >
+            <path
+              d="M5 7.5L10 12.5L15 7.5"
+              stroke="currentColor"
+              strokeWidth="1.8"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
+          <span>{isExpanded ? 'Show less' : `Show all ${items.length}`}</span>
+        </button>
+      )}
+    </div>
+  )
+}
+
 export default function PerfumeShelf() {
   const supabase = createClient()
   const [perfumes, setPerfumes] = useState<Perfume[]>([])
@@ -203,8 +386,16 @@ export default function PerfumeShelf() {
 
   const [selectedPerfume, setSelectedPerfume] = useState<Perfume | null>(null)
   const [editId, setEditId] = useState<string | null>(null)
+  const editFormRef = useRef<HTMLDivElement>(null)
   const [formValues, setFormValues] = useState({
-    name: '', brand: '', category: '', concentration: '', image_url: '', cloudinary_public_id: '', shelf_row: '0', occasion: '', notes: '', rating: '', longevity_hours: '', ideal_season: '', isLiquidDeo: false
+    name: '', brand: '', category: '', concentration: '', image_url: '', cloudinary_public_id: '',
+    shelf_row: '0', occasion: '', notes: '', rating: '', longevity_hours: '', ideal_season: '',
+    isLiquidDeo: false,
+    // Decant fields
+    is_decant: false,
+    decant_volume_ml: null as number | null,
+    decant_source: '',
+    decant_finished: false,
   })
 
 
@@ -237,7 +428,12 @@ export default function PerfumeShelf() {
         concentration: data.concentration || prev.concentration,
         rating: data.rating ? String(data.rating) : prev.rating,
         longevity_hours: data.longevity_hours ? String(data.longevity_hours) : prev.longevity_hours,
-        ideal_season: data.ideal_season || prev.ideal_season
+        ideal_season: data.ideal_season || prev.ideal_season,
+        // Guard: autofill must NEVER overwrite user-entered decant fields
+        is_decant:        prev.is_decant,
+        decant_volume_ml: prev.decant_volume_ml,
+        decant_source:    prev.decant_source,
+        decant_finished:  prev.decant_finished,
       }))
       
     } catch (err: unknown) {
@@ -325,6 +521,10 @@ export default function PerfumeShelf() {
       longevity_hours: '',
       ideal_season: '',
       isLiquidDeo: false,
+      is_decant: false,
+      decant_volume_ml: null,
+      decant_source: '',
+      decant_finished: false,
     })
   }
 
@@ -349,7 +549,14 @@ export default function PerfumeShelf() {
       longevity_hours: perfume.longevity_hours != null ? String(perfume.longevity_hours) : '',
       ideal_season: perfume.ideal_season || '',
       isLiquidDeo: perfume.category?.toLowerCase().includes('liquid deodorant') || false,
+      is_decant: perfume.is_decant || false,
+      decant_volume_ml: perfume.decant_volume_ml ?? null,
+      decant_source: perfume.decant_source || '',
+      decant_finished: perfume.decant_finished || false,
     })
+    setTimeout(() => {
+      editFormRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    }, 50)
   }
 
   const resetForm = () => {
@@ -368,6 +575,10 @@ export default function PerfumeShelf() {
       longevity_hours: '',
       ideal_season: '',
       isLiquidDeo: false,
+      is_decant: false,
+      decant_volume_ml: null,
+      decant_source: '',
+      decant_finished: false,
     })
   }
 
@@ -382,6 +593,12 @@ export default function PerfumeShelf() {
       shelf_row: Number(formValues.shelf_row) || 0,
       occasion: formValues.occasion,
       notes: formValues.notes,
+      // Decant fields — always send explicit values (null not omitted)
+      // so toggling off clears stale DB values
+      is_decant:        formValues.is_decant,
+      decant_volume_ml: formValues.is_decant ? (formValues.decant_volume_ml ?? null) : null,
+      decant_source:    formValues.is_decant ? (formValues.decant_source || null)      : null,
+      decant_finished:  formValues.is_decant ? (formValues.decant_finished || false)   : false,
     }
     if (formValues.rating) payload.rating = Number(formValues.rating)
     if (formValues.longevity_hours) payload.longevity_hours = Number(formValues.longevity_hours)
@@ -448,6 +665,17 @@ export default function PerfumeShelf() {
   const groupEntries = Array.from(grouped.entries()).sort((a, b) => {
     if (!autoSort) return Number(a[0]) - Number(b[0])
     return (sortOrder[a[0]] ?? 50) - (sortOrder[b[0]] ?? 50)
+  }).map(([label, items]) => {
+    // Within the Decant section: unfinished first, finished last
+    if (label === 'Decant') {
+      const sorted = [...items].sort((a, b) => {
+        const aF = a.decant_finished ? 1 : 0
+        const bF = b.decant_finished ? 1 : 0
+        return aF - bF
+      })
+      return [label, sorted] as [string, Perfume[]]
+    }
+    return [label, items] as [string, Perfume[]]
   })
 
   const activeOptions = useMemo(() => buildDynamicOptions(perfumes, filterMode), [perfumes, filterMode])
@@ -538,7 +766,7 @@ export default function PerfumeShelf() {
             )}
 
             {user ? (
-              <div className="mt-6 grid gap-4 md:grid-cols-[1fr_1fr]">
+              <div ref={editFormRef} className="form-section mt-6 grid gap-4 md:grid-cols-[1fr_1fr]">
                 <div className="space-y-3 rounded-2xl border border-border bg-surface p-4">
                   <div className="grid gap-3">
                     <label className="text-sm text-foreground">
@@ -603,11 +831,91 @@ export default function PerfumeShelf() {
                         className="mt-1 w-full rounded-2xl border border-border-light bg-surface px-3 py-2 text-sm outline-none focus:border-accent"
                       />
                     </label>
-                  </div>
-                </div>
+
+                    {/* ── Decant / Tester toggle ──────────────── */}
+                    <label className="flex items-center gap-3 cursor-pointer mt-1 select-none">
+                      <span className="text-sm text-foreground font-medium">🧪 Decant / Tester?</span>
+                      <input
+                        type="checkbox"
+                        checked={formValues.is_decant}
+                        onChange={(e) => {
+                          const checked = e.target.checked
+                          setFormValues(prev => ({
+                            ...prev,
+                            is_decant: checked,
+                            // Reset decant sub-fields when toggled OFF
+                            decant_volume_ml: checked ? prev.decant_volume_ml : null,
+                            decant_source:    checked ? prev.decant_source    : '',
+                            decant_finished:  false,
+                          }))
+                        }}
+                        className="w-4 h-4 rounded text-accent focus:ring-accent bg-background border-border"
+                      />
+                    </label>
+
+                    {/* ── Decant sub-fields (visible only when toggled ON) ── */}
+                    {formValues.is_decant && (
+                      <div className="mt-1 space-y-3 rounded-2xl border border-[rgba(255,200,100,0.2)] bg-[rgba(255,200,100,0.04)] p-4">
+                        {/* Volume — quick-pick chips + manual input (single source of truth) */}
+                        <div>
+                          <div className="text-xs font-medium text-muted mb-1">Volume (ml)</div>
+                          <div className="volume-chips">
+                            {[1, 2, 5, 10, 15, 30].map(v => (
+                              <button
+                                key={v}
+                                type="button"
+                                className={`volume-chip${formValues.decant_volume_ml === v ? ' active' : ''}`}
+                                onClick={() => setFormValues(prev => ({ ...prev, decant_volume_ml: v }))}
+                              >
+                                {v}ml
+                              </button>
+                            ))}
+                          </div>
+                          <input
+                            type="number"
+                            min="0.5"
+                            max="100"
+                            step="0.5"
+                            placeholder="Custom ml (e.g. 7.5)"
+                            value={formValues.decant_volume_ml ?? ''}
+                            onChange={(e) => setFormValues(prev => ({
+                              ...prev,
+                              decant_volume_ml: e.target.value ? parseFloat(e.target.value) : null
+                            }))}
+                            className="mt-2 w-full rounded-2xl border border-border-light bg-surface px-3 py-2 text-sm outline-none focus:border-[#ffc864]"
+                          />
+                        </div>
+
+                        {/* Source — optional */}
+                        <div>
+                          <label className="text-xs font-medium text-muted">Source (optional)</label>
+                          <input
+                            type="text"
+                            placeholder="e.g. Surrender to Chance, r/fragrance swap, friend..."
+                            value={formValues.decant_source}
+                            onChange={(e) => setFormValues(prev => ({ ...prev, decant_source: e.target.value }))}
+                            className="mt-1 w-full rounded-2xl border border-border-light bg-surface px-3 py-2 text-sm outline-none focus:border-[#ffc864]"
+                          />
+                        </div>
+
+                        {/* Finished toggle */}
+                        <label className="flex items-center gap-3 cursor-pointer select-none">
+                          <span className="text-sm text-foreground">Empty / Finished?</span>
+                          <input
+                            type="checkbox"
+                            checked={formValues.decant_finished}
+                            onChange={(e) => setFormValues(prev => ({ ...prev, decant_finished: e.target.checked }))}
+                            className="w-4 h-4 rounded text-accent focus:ring-accent bg-background border-border"
+                          />
+                        </label>
+                      </div>
+                    )}
+                  </div>{/* /grid gap-3 */}
+                </div>{/* /left column space-y-3 */}
                 <div className="space-y-3 rounded-2xl border border-border bg-surface p-4">
                   <label className="text-sm text-foreground">
                     Image URL
+
                     <input
                       value={formValues.image_url}
                       onChange={(e) => setFormField('image_url', e.target.value)}
@@ -652,16 +960,16 @@ export default function PerfumeShelf() {
                     />
                   </label>
                 </div>
-                <div className="md:col-span-2 flex flex-wrap gap-3">
+                <div className="md:col-span-2 flex flex-col sm:flex-row flex-wrap gap-3">
                   <button
                     onClick={savePerfume}
-                    className="rounded-2xl bg-accent px-5 py-2 text-sm text-background transition hover:bg-surface-hover"
+                    className="save-btn rounded-2xl bg-accent px-5 py-3 text-base sm:text-sm text-background transition hover:bg-surface-hover flex items-center"
                   >
                     {editId ? 'Update bottle' : 'Add bottle'}
                   </button>
                   <button
                     onClick={resetForm}
-                    className="rounded-2xl border border-border-light bg-surface px-5 py-2 text-sm text-foreground transition hover:bg-surface-hover"
+                    className="rounded-2xl border border-border-light bg-surface px-5 py-3 sm:py-2 text-base sm:text-sm text-foreground transition hover:bg-surface-hover"
                   >
                     Clear
                   </button>
@@ -672,8 +980,8 @@ export default function PerfumeShelf() {
         ) : null}
       </section>
 
-      <div className="mb-3 flex flex-wrap items-center gap-3">
-        <div className="flex flex-wrap gap-2">
+      <div className="mb-3 flex flex-col sm:flex-row sm:flex-wrap sm:items-center gap-3">
+        <div className="filter-tabs">
           {filterModes.map((mode) => (
             <button
               key={mode}
@@ -681,18 +989,18 @@ export default function PerfumeShelf() {
                 setFilterMode(mode)
                 setActiveFilter('All')
               }}
-              className={`rounded-full px-4 py-1.5 text-sm font-medium transition-colors border ${filterMode === mode ? 'bg-accent border-accent text-background shadow-md' : 'bg-surface border-border-light text-muted hover:border-accent/50 hover:text-foreground'}`}
+              className={`rounded-full px-4 py-2 text-sm font-medium transition-colors border shrink-0 min-h-[44px] ${filterMode === mode ? 'bg-accent border-accent text-background shadow-md' : 'bg-surface border-border-light text-muted hover:border-accent/50 hover:text-foreground'}`}
             >
               {mode}
             </button>
           ))}
         </div>
-        <div className="ml-auto flex items-center gap-6">
+        <div className="flex items-center gap-4 sm:gap-6 sm:ml-auto flex-wrap">
           <div className="flex items-center gap-3">
             <label className="text-sm font-medium text-muted flex items-center gap-2">
               Auto-sort
             </label>
-            <button onClick={() => setAutoSort((s) => !s)} className={`h-8 w-16 rounded-full transition-colors font-medium text-xs ${autoSort ? 'bg-accent text-background' : 'bg-surface border border-border-light text-muted hover:text-foreground'}`}>
+            <button onClick={() => setAutoSort((s) => !s)} className={`h-11 w-16 rounded-full transition-colors font-medium text-xs ${autoSort ? 'bg-accent text-background' : 'bg-surface border border-border-light text-muted hover:text-foreground'}`}>
               {autoSort ? 'ON' : 'OFF'}
             </button>
           </div>
@@ -700,19 +1008,19 @@ export default function PerfumeShelf() {
           <div className="flex items-center gap-1 bg-surface p-1 rounded-full border border-border-light">
             <button 
               onClick={() => setViewMode('Masonry')} 
-              className={`px-3 py-1 text-xs font-medium rounded-full transition-colors ${viewMode === 'Masonry' ? 'bg-accent text-background' : 'text-muted hover:text-foreground'}`}
+              className={`px-3 py-2 text-xs font-medium rounded-full transition-colors min-h-[36px] ${viewMode === 'Masonry' ? 'bg-accent text-background' : 'text-muted hover:text-foreground'}`}
             >
               Masonry
             </button>
             <button 
               onClick={() => setViewMode('Categorized')} 
-              className={`px-3 py-1 text-xs font-medium rounded-full transition-colors ${viewMode === 'Categorized' ? 'bg-accent text-background' : 'text-muted hover:text-foreground'}`}
+              className={`px-3 py-2 text-xs font-medium rounded-full transition-colors min-h-[36px] ${viewMode === 'Categorized' ? 'bg-accent text-background' : 'text-muted hover:text-foreground'}`}
             >
               Shelves
             </button>
              <button 
               onClick={() => setViewMode('Master Wall')} 
-              className={`px-3 py-1 text-xs font-medium rounded-full transition-colors ${viewMode === 'Master Wall' ? 'bg-accent text-background' : 'text-muted hover:text-foreground'}`}
+              className={`px-3 py-2 text-xs font-medium rounded-full transition-colors min-h-[36px] ${viewMode === 'Master Wall' ? 'bg-accent text-background' : 'text-muted hover:text-foreground'}`}
             >
               Wall
             </button>
@@ -721,12 +1029,12 @@ export default function PerfumeShelf() {
       </div>
 
       {activeOptions.length > 1 && (
-        <div className="mb-8 flex flex-wrap gap-2 border-b border-border pb-4">
+        <div className="filter-tabs mb-8 border-b border-border pb-4">
           {activeOptions.map((option) => (
             <button
               key={option}
               onClick={() => setActiveFilter(option)}
-              className={`relative rounded-full px-4 py-1.5 text-xs font-medium transition-colors ${activeFilter === option ? 'text-accent font-semibold' : 'text-muted hover:text-foreground'}`}
+              className={`relative rounded-full px-4 py-2.5 text-xs font-medium transition-colors shrink-0 min-h-[44px] ${activeFilter === option ? 'text-accent font-semibold' : 'text-muted hover:text-foreground'}`}
             >
               {activeFilter === option && (
                 <motion.div
@@ -766,62 +1074,95 @@ export default function PerfumeShelf() {
                   {autoSort ? `${filterMode}: ${groupLabel}` : `Shelf ${groupLabel}`} <span className="text-muted ml-2 text-sm normal-case font-sans">({items.length} bottles)</span>
                 </h3>
               </div>
-              <MasonryGrid perfumes={items} onSelect={setSelectedPerfume} />
+              <MasonryGrid 
+                perfumes={items} 
+                onSelect={setSelectedPerfume}
+                user={user}
+                onEdit={startEditing}
+                onDelete={deletePerfume}
+              />
             </div>
           ))}
         </div>
       ) : viewMode === 'Master Wall' ? (
         <div className="master-wall-grid animate-fade-in">
           {filtered.map(p => (
-            <div key={p.id} className="master-wall-cell group" onClick={() => setSelectedPerfume(p)} data-fragrance-card={true}>
-              <div className="master-wall-bottle">
-                <BottleImage publicId={p.cloudinary_public_id || p.image_url || '/placeholder-bottle.png'} alt={p.name || p.brand || 'Perfume'} width={200} height={300} className="h-full object-contain" />
-              </div>
-              <div className="w-full px-2 py-3 mt-1 text-center flex flex-col justify-between flex-1 bg-surface/50 border-t border-border-light/50">
-                <div>
-                  <div className="font-bold text-xs truncate text-foreground">{p.name || 'Unknown'}</div>
-                  <div className="text-muted text-[10px] truncate uppercase tracking-widest mt-0.5">{p.brand || ''}</div>
+            <div key={p.id} className="group relative" style={{
+              background: '#111',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              overflow: 'hidden',
+              cursor: 'pointer',
+            }} onClick={() => setSelectedPerfume(p)} data-fragrance-card={true}>
+              {/* Bottle — fills most of the row height */}
+              <BottleImage
+                publicId={p.cloudinary_public_id || p.image_url || ''}
+                alt={p.name || 'Perfume'}
+                width={300}
+                height={300}
+                style={{
+                  height: '165px',
+                  width: '100%',
+                  objectFit: 'contain',
+                  objectPosition: 'center bottom',
+                  padding: '8px 12px 0',
+                }}
+              />
+
+              {/* Edit/Delete overlay (keep this!) */}
+              {user && (
+                <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-end justify-center gap-2 pb-3 bg-gradient-to-t from-black/60 to-transparent z-10">
+                  <button onClick={(e) => { e.stopPropagation(); startEditing(p); }} className="text-xs px-3 py-1 rounded-full bg-white/10 hover:bg-white/20 text-white shadow-sm transition-colors border border-white/20">Edit</button>
+                  <button onClick={(e) => { e.stopPropagation(); deletePerfume(p.id); }} className="text-xs px-3 py-1 rounded-full bg-red-500/30 hover:bg-red-500/50 text-red-100 shadow-sm transition-colors border border-red-500/30">Delete</button>
                 </div>
-                {user ? (
-                  <div className="mt-2 flex flex-wrap justify-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <button onClick={(e) => { e.stopPropagation(); startEditing(p) }} className="rounded bg-surface-hover px-2 py-1 text-[10px] text-foreground hover:text-accent border border-border-light">Edit</button>
-                    <button onClick={(e) => { e.stopPropagation(); deletePerfume(p.id) }} className="rounded bg-danger/10 px-2 py-1 text-[10px] text-danger hover:bg-danger/20 border border-danger/30">Del</button>
-                  </div>
-                ) : null}
+              )}
+
+              {/* Slim name bar */}
+              <div style={{
+                width: '100%',
+                padding: '4px 10px 6px',
+                background: 'rgba(0,0,0,0.4)',
+                marginTop: 'auto'
+              }}>
+                <div style={{
+                  fontSize: '0.72rem',
+                  fontWeight: 600,
+                  color: '#fff',
+                  whiteSpace: 'nowrap',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                }}>
+                  {p.name}
+                </div>
+                <div style={{
+                  fontSize: '0.62rem',
+                  color: 'rgba(255,255,255,0.4)',
+                  whiteSpace: 'nowrap',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                }}>
+                  {p.brand}
+                </div>
               </div>
             </div>
           ))}
         </div>
       ) : (
-        <div className="space-y-8">
+        <div className="space-y-10">
           {groupEntries.map(([groupLabel, items]) => (
-            <div key={groupLabel} className="rounded-2xl border border-border bg-surface/50 p-6 shadow-sm animate-fade-in">
-              <div className="mb-4 flex items-center justify-between border-b border-border-light pb-2">
-                <div className="text-sm font-semibold tracking-wider text-accent uppercase">
-                  {autoSort ? `${filterMode}: ${groupLabel}` : `Shelf ${groupLabel}`} <span className="text-muted ml-2">({items.length})</span>
-                </div>
-              </div>
-              <div className="flex gap-6 overflow-x-auto pb-4 shelf-row physical-shelf pt-6 px-4">
-                {items.map((p) => (
-                  <div key={p.id} className="w-32 flex-shrink-0 group physical-shelf-item cursor-pointer" onClick={() => setSelectedPerfume(p)} data-fragrance-card={true}>
-                    <div className="relative h-44 w-full overflow-hidden rounded-xl bg-surface-hover/80 shadow-lg transition-all duration-300 group-hover:shadow-[0_8px_30px_rgb(0,0,0,0.12)] border border-border-light group-hover:border-accent">
-                      <BottleImage publicId={p.cloudinary_public_id || p.image_url || '/placeholder-bottle.png'} alt={p.name || p.brand || 'Perfume'} width={200} height={300} className="h-full w-full object-contain p-2" />
-                    </div>
-                    <div className="mt-3 text-sm">
-                      <div className="font-bold truncate text-foreground">{p.name || 'Unknown'}</div>
-                      <div className="text-muted truncate">{p.brand || ''}</div>
-                      <div className="text-accent-dark text-xs mt-0.5">{p.concentration || ''}</div>
-                      {user ? (
-                        <div className="mt-3 flex flex-wrap gap-2">
-                          <button onClick={(e) => { e.stopPropagation(); startEditing(p) }} className="rounded-full border border-border-light bg-surface px-3 py-1 text-xs text-foreground transition hover:border-accent hover:text-accent">Edit</button>
-                          <button onClick={(e) => { e.stopPropagation(); deletePerfume(p.id) }} className="rounded-full border border-danger/30 bg-danger/10 px-3 py-1 text-xs text-danger transition hover:bg-danger/20">Delete</button>
-                        </div>
-                      ) : null}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
+            <ShelfSection
+              key={groupLabel}
+              groupLabel={groupLabel}
+              items={items as Perfume[]}
+              filterMode={filterMode}
+              autoSort={autoSort}
+              user={user}
+              setSelectedPerfume={setSelectedPerfume}
+              startEditing={startEditing}
+              deletePerfume={deletePerfume}
+            />
           ))}
         </div>
       )}

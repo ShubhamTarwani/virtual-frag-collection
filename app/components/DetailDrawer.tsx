@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useEffect, useRef } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import type { Perfume } from './PerfumeShelf'
 import { BottleImage } from '@/components/ui/BottleImage'
@@ -117,7 +117,33 @@ function SeasonIcons({ activeSeason }: { activeSeason: string | undefined }) {
 }
 
 export default function DetailDrawer({ perfume, onClose }: Props) {
-  const panelRef = useRef<HTMLDivElement>(null)
+  const drawerRef = useRef<HTMLDivElement>(null)
+  const [isMobile, setIsMobile] = useState(false)
+
+  // Detect mobile viewport (SSR-safe: starts false, set on mount)
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < 768)
+    check()
+    window.addEventListener('resize', check)
+    return () => window.removeEventListener('resize', check)
+  }, [])
+
+  // Swipe-down-to-dismiss (mobile bottom sheet)
+  useEffect(() => {
+    const el = drawerRef.current
+    if (!el) return
+    let startY = 0
+    const onStart = (e: TouchEvent) => { startY = e.touches[0].clientY }
+    const onEnd = (e: TouchEvent) => {
+      if (e.changedTouches[0].clientY - startY > 80) onClose()
+    }
+    el.addEventListener('touchstart', onStart)
+    el.addEventListener('touchend', onEnd)
+    return () => {
+      el.removeEventListener('touchstart', onStart)
+      el.removeEventListener('touchend', onEnd)
+    }
+  }, [onClose])
 
   // Close on Escape key
   useEffect(() => {
@@ -150,15 +176,17 @@ export default function DetailDrawer({ perfume, onClose }: Props) {
             onClick={onClose}
           />
 
-          {/* Panel */}
+          {/* Panel — right drawer on desktop, bottom sheet on mobile */}
           <motion.div
-            ref={panelRef}
+            ref={drawerRef}
             className="drawer-panel"
-            initial={{ x: '100%' }}
-            animate={{ x: 0 }}
-            exit={{ x: '100%' }}
+            initial={isMobile ? { y: '100%' } : { x: '100%' }}
+            animate={isMobile ? { y: 0 } : { x: 0 }}
+            exit={isMobile ? { y: '100%' } : { x: '100%' }}
             transition={{ type: 'spring', damping: 30, stiffness: 300 }}
           >
+            {/* Drag handle — visible on mobile only */}
+            <div className="drawer-handle md:hidden" aria-hidden="true" />
             {/* Close button */}
             <button className="drawer-close" onClick={onClose}>
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
@@ -196,6 +224,22 @@ export default function DetailDrawer({ perfume, onClose }: Props) {
                   <span className="masonry-card-badge mt-2">{perfume.concentration}</span>
                 )}
               </div>
+
+              {/* Decant / Tester info block */}
+              {perfume.is_decant && (
+                <div className="decant-drawer-block">
+                  <span className="decant-drawer-label">🧪 Decant</span>
+                  {perfume.decant_volume_ml != null && (
+                    <span className="decant-drawer-meta">{perfume.decant_volume_ml}ml</span>
+                  )}
+                  {perfume.decant_source && (
+                    <span className="decant-drawer-meta">via {perfume.decant_source}</span>
+                  )}
+                  {perfume.decant_finished && (
+                    <span className="decant-finished-pill">Empty</span>
+                  )}
+                </div>
+              )}
 
               {/* Divider */}
               <div className="h-px bg-border" />

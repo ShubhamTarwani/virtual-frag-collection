@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono, Playfair_Display } from "next/font/google";
 import "./globals.css";
 import NavBar from "./components/NavBar";
@@ -22,6 +22,12 @@ const playfair = Playfair_Display({
   subsets: ["latin"],
 });
 
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 1,
+  viewportFit: 'cover',
+};
 export const metadata: Metadata = {
   title: {
     template: '%s | Virtual Fragrance Shelf',

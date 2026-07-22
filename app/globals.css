@@ -127,17 +127,6 @@ body {
   font-family: var(--font-sans), system-ui, -apple-system, sans-serif;
 }
 
-/* Smooth scrollbar for bottle rows */
-.shelf-row::-webkit-scrollbar {
-  height: 4px;
-}
-.shelf-row::-webkit-scrollbar-track {
-  background: transparent;
-}
-.shelf-row::-webkit-scrollbar-thumb {
-  background: var(--border-light);
-  border-radius: 4px;
-}
 
 /* Glassmorphism card */
 .glass-card {
@@ -257,10 +246,21 @@ body {
   position: relative;
   margin-top: 1rem;
   margin-bottom: 3rem;
-  padding-bottom: 20px; /* Space for bottles to sit on the shelf */
-  display: flex;
-  gap: 1.5rem;
-  overflow-x: auto;
+  padding-bottom: 28px; /* Space for bottles to sit above the shelf board */
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1rem;
+  overflow: visible;
+}
+
+@media (min-width: 600px) {
+  .physical-shelf { grid-template-columns: repeat(3, 1fr); }
+}
+@media (min-width: 900px) {
+  .physical-shelf { grid-template-columns: repeat(4, 1fr); }
+}
+@media (min-width: 1200px) {
+  .physical-shelf { grid-template-columns: repeat(5, 1fr); }
 }
 
 /* The 3D shelf board */
@@ -283,6 +283,8 @@ body {
 .physical-shelf-item {
   position: relative;
   z-index: 1;
+  width: 100%;      /* fill the grid cell */
+  min-width: unset; /* remove any old fixed min-width */
   /* Add a subtle drop shadow to ground the bottle on the shelf */
   filter: drop-shadow(0 10px 8px rgba(0,0,0,0.4));
   transition: filter 0.3s ease, transform 0.3s ease;
@@ -298,53 +300,30 @@ body {
 /* The grid container */
 .master-wall-grid {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 0; /* Important: no gap so the shelf lines stitch together perfectly */
-  margin-top: 2rem;
-  background: var(--surface-hover);
+  grid-template-columns: repeat(5, 1fr);
+  grid-auto-rows: 220px;
+  gap: 1px;
+  width: 100%;
+  box-sizing: border-box;
+  background: rgba(255,255,255,0.06);
   border-radius: 16px;
   overflow: hidden;
   border: 1px solid var(--border);
   box-shadow: 0 10px 30px rgba(0,0,0,0.2);
 }
 
-@media (min-width: 640px) {
-  .master-wall-grid { grid-template-columns: repeat(4, 1fr); }
-}
-@media (min-width: 1024px) {
-  .master-wall-grid { grid-template-columns: repeat(6, 1fr); }
-}
-
-/* Individual cell that builds the seamless shelf */
-.master-wall-cell {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding: 1.5rem 0.5rem 0 0.5rem;
-  /* The shelf front edge */
-  border-bottom: 8px solid var(--shelf-front);
-  /* The shelf top surface drawn via a gradient */
-  background: linear-gradient(to top, var(--shelf-top) 0%, transparent 20px);
+@media (max-width: 900px) {
+  .master-wall-grid { 
+    grid-template-columns: repeat(4, 1fr);
+    grid-auto-rows: 200px;
+  }
 }
 
-/* Vertical dividers to make it look like separate cubbies/shelves */
-.master-wall-cell {
-  border-right: 1px solid var(--border-light);
-}
-
-/* The bottle inside the master wall cell */
-.master-wall-bottle {
-  position: relative;
-  z-index: 1;
-  height: 140px;
-  width: 100%;
-  display: flex;
-  justify-content: center;
-  align-items: flex-end;
-  padding-bottom: 2px; /* Slight lift from the shelf */
-  filter: drop-shadow(0 10px 8px rgba(0,0,0,0.3));
-  transition: transform 0.3s ease, filter 0.3s ease;
+@media (max-width: 600px) {
+  .master-wall-grid { 
+    grid-template-columns: repeat(3, 1fr);
+    grid-auto-rows: 180px;
+  }
 }
 
 .master-wall-bottle:hover {
@@ -358,22 +337,27 @@ body {
    ============================================= */
 
 .masonry-grid {
-  columns: 2;
-  column-gap: 1rem;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+  width: 100%;
+  max-width: 100%;
+  overflow: hidden; /* prevent any child from bleeding out */
+  box-sizing: border-box;
+  padding: 0 16px; /* breathing room from viewport edges */
 }
 
-@media (min-width: 640px) {
-  .masonry-grid {
-    columns: 3;
-    column-gap: 1.25rem;
-  }
+@media (min-width: 600px) {
+  .masonry-grid { grid-template-columns: repeat(3, 1fr); }
 }
-
-@media (min-width: 1024px) {
-  .masonry-grid {
-    columns: 4;
-    column-gap: 1.25rem;
-  }
+@media (min-width: 900px) {
+  .masonry-grid { grid-template-columns: repeat(4, 1fr); }
+}
+@media (min-width: 1200px) {
+  .masonry-grid { grid-template-columns: repeat(5, 1fr); }
+}
+@media (min-width: 1500px) {
+  .masonry-grid { grid-template-columns: repeat(6, 1fr); }
 }
 
 .masonry-card {
@@ -594,4 +578,254 @@ a, button, [role='button'], input, select, textarea { cursor: none !important; }
 }
 .shimmer-silver {
   animation: shimmerSilver 3s infinite;
+}
+
+/* =============================================
+   MOBILE & TOUCH — Android Responsiveness
+   ============================================= */
+
+/* Safe area padding for notched Android devices */
+body {
+  padding-top: env(safe-area-inset-top, 0px);
+}
+
+/* Remove Android grey tap flash on all interactive elements */
+a, button, [role='button'], input, select, textarea, label {
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* ── Filter tabs ──────────────────────────────
+   Mobile: horizontal scroll with hidden scrollbar
+   Desktop: normal flex-wrap
+   ─────────────────────────────────────────── */
+.filter-tabs {
+  display: flex;
+  gap: 8px;
+}
+@media (max-width: 767px) {
+  .filter-tabs {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    flex-wrap: nowrap;
+    padding-bottom: 4px;
+  }
+  .filter-tabs::-webkit-scrollbar { display: none; }
+}
+@media (min-width: 768px) {
+  .filter-tabs {
+    flex-wrap: wrap;
+    overflow-x: visible;
+  }
+}
+
+/* ── Card name 2-line clamp ────────────────── */
+.card-name-clamp {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* ── Touch tap feedback (touch-only devices) ─ */
+@media (hover: none) and (pointer: coarse) {
+  .touch-card:active {
+    transform: scale(0.97);
+    opacity: 0.88;
+    transition: transform 0.1s ease, opacity 0.1s ease;
+  }
+}
+
+/* ── Form inputs — prevent Android auto-zoom ──
+   Android zooms in when input font-size < 16px.
+   The .form-section wrapper targets all inputs
+   inside the add/edit form on mobile.
+   ─────────────────────────────────────────── */
+@media (max-width: 767px) {
+  .form-section input,
+  .form-section select {
+    font-size: 16px !important;
+    min-height: 48px;
+  }
+  .form-section textarea {
+    font-size: 16px !important;
+    min-height: 80px;
+  }
+  /* Save/Add button: full width on mobile */
+  .form-section .save-btn {
+    width: 100%;
+    min-height: 52px;
+    justify-content: center;
+  }
+}
+
+/* ── Drawer — bottom sheet on mobile ─────────
+   Slides up from bottom (90vh), rounded top
+   corners, safe-area padding for Android nav bar
+   ─────────────────────────────────────────── */
+@media (max-width: 767px) {
+  .drawer-panel {
+    top: auto;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    max-width: 100%;
+    max-height: 90vh;
+    border-radius: 24px 24px 0 0;
+    border-left: none;
+    border-top: 1px solid var(--border);
+    /* Clear Android's bottom navigation bar */
+    padding-bottom: env(safe-area-inset-bottom, 16px);
+    overflow-y: auto;
+  }
+}
+
+/* Drag handle pill — shown at top of mobile bottom sheet */
+.drawer-handle {
+  width: 40px;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--border-light);
+  margin: 12px auto 4px;
+  flex-shrink: 0;
+}
+
+/* =============================================
+   DECANT / TESTER BADGE
+   ============================================= */
+
+/* Amber pill overlaid top-left of the card image */
+.decant-badge {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  background: rgba(255, 200, 100, 0.15);
+  border: 1px solid rgba(255, 200, 100, 0.4);
+  color: #ffc864;
+  font-size: 0.68rem;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 20px;
+  letter-spacing: 0.04em;
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  white-space: nowrap;
+  pointer-events: none;
+  z-index: 2;
+}
+
+/* Finished decants — struck-through and faded */
+.decant-badge.finished {
+  opacity: 0.5;
+  text-decoration: line-through;
+  text-decoration-color: rgba(255, 200, 100, 0.6);
+}
+
+/* Dim the whole card when a decant is finished */
+.card-decant-finished {
+  opacity: 0.55;
+  filter: grayscale(25%);
+  transition: opacity 0.2s ease, filter 0.2s ease;
+}
+.card-decant-finished:hover,
+.card-decant-finished:focus-within {
+  opacity: 0.85;
+  filter: grayscale(0%);
+}
+
+/* Decant info block inside DetailDrawer */
+.decant-drawer-block {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  background: rgba(255, 200, 100, 0.06);
+  border: 1px solid rgba(255, 200, 100, 0.2);
+  border-radius: 12px;
+}
+.decant-drawer-label {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #ffc864;
+  letter-spacing: 0.05em;
+}
+.decant-drawer-meta {
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+.decant-finished-pill {
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  padding: 2px 8px;
+  border-radius: 20px;
+  background: rgba(252, 165, 165, 0.12);
+  border: 1px solid rgba(252, 165, 165, 0.3);
+  color: var(--danger);
+}
+
+/* Volume chip buttons in the add/edit form */
+.volume-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 6px 0;
+}
+.volume-chip {
+  padding: 4px 12px;
+  border-radius: 20px;
+  border: 1px solid var(--border-light);
+  background: var(--surface);
+  color: var(--muted);
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  min-height: 32px;
+  -webkit-tap-highlight-color: transparent;
+}
+.volume-chip:hover { border-color: var(--accent); color: var(--accent); }
+.volume-chip.active {
+  background: rgba(255, 200, 100, 0.12);
+  border-color: #ffc864;
+  color: #ffc864;
+}
+
+
+/* =============================================
+   SHELF EXPAND / COLLAPSE BUTTON
+   ============================================= */
+
+.shelf-expand-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 16px auto 0;
+  padding: 6px 16px;
+  border-radius: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.04);
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 0.75rem;
+  font-weight: 500;
+  letter-spacing: 0.05em;
+  cursor: pointer;
+  transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+.shelf-expand-btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.85);
+  border-color: rgba(255, 255, 255, 0.25);
+}
+.shelf-expand-btn:active {
+  transform: scale(0.96);
+}
+
+/* Ghost cell fix - enforce natural flow */
+.shelf-grid > * {
+  grid-column: auto !important;
+  grid-row: auto !important;
 }

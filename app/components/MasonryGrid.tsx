@@ -4,10 +4,14 @@ import React, { memo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { BottleImage } from '@/components/ui/BottleImage'
 import type { Perfume } from './PerfumeShelf'
+import type { User } from '@supabase/supabase-js'
 
 type Props = {
   perfumes: Perfume[]
   onSelect: (p: Perfume) => void
+  user?: User | null
+  onEdit?: (p: Perfume) => void
+  onDelete?: (id: string) => Promise<void>
 }
 
 const cardVariants = {
@@ -29,11 +33,11 @@ const cardVariants = {
   },
 }
 
-const MasonryGrid = memo(function MasonryGrid({ perfumes, onSelect }: Props) {
+const MasonryGrid = memo(function MasonryGrid({ perfumes, onSelect, user, onEdit, onDelete }: Props) {
   return (
     <div className="masonry-grid">
       <AnimatePresence mode="popLayout">
-        {perfumes.map((p, i) => (
+        {perfumes.filter(p => p != null && p.id != null).map((p, i) => (
           <motion.div
             key={p.id}
             layout
@@ -49,7 +53,10 @@ const MasonryGrid = memo(function MasonryGrid({ perfumes, onSelect }: Props) {
             {/* Bottle image */}
             <div className="relative overflow-hidden">
               {p.image_url || p.cloudinary_public_id ? (
-                <div className="flex justify-center p-4 bg-surface-hover/50">
+                <div 
+                  className="flex justify-center p-4 bg-surface-hover/50"
+                  style={{ minHeight: '200px', alignItems: 'center' }}
+                >
                   <BottleImage
                     publicId={p.cloudinary_public_id || p.image_url || ''}
                     alt={p.name || 'Perfume bottle'}
@@ -61,17 +68,34 @@ const MasonryGrid = memo(function MasonryGrid({ perfumes, onSelect }: Props) {
               ) : (
                 <div
                   className="masonry-card-img flex items-center justify-center"
-                  style={{ height: `${200 + (i % 4) * 30}px` }}
+                  style={{ 
+                    height: '240px',
+                    background: 'linear-gradient(135deg, #1a1a1a 0%, #2a2a2a 100%)',
+                    borderRadius: '8px',
+                  }}
                 >
                   <div className="text-center px-4">
-                    <div className="text-3xl mb-2 opacity-30">🧴</div>
-                    <div className="text-xs text-muted font-medium">{p.name}</div>
+                    <div className="text-4xl mb-3" style={{ opacity: 0.4 }}>🧴</div>
+                    <div 
+                      className="text-xs font-medium" 
+                      style={{ color: 'rgba(255,255,255,0.5)' }}
+                    >
+                      {p.name}
+                    </div>
                   </div>
                 </div>
               )}
 
               {/* Hover gradient overlay */}
               <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent opacity-0 hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
+              
+              {/* Edit/Delete — only on hover, Wall view */}
+              {user && onEdit && onDelete && (
+                <div className="absolute inset-0 opacity-0 hover:opacity-100 transition-opacity duration-200 flex items-end justify-center gap-2 pb-3 bg-gradient-to-t from-black/60 to-transparent">
+                  <button onClick={(e) => { e.stopPropagation(); onEdit(p); }} className="text-xs px-3 py-1 rounded-full bg-white/10 hover:bg-white/20 text-white shadow-sm transition-colors border border-white/20">Edit</button>
+                  <button onClick={(e) => { e.stopPropagation(); onDelete(p.id); }} className="text-xs px-3 py-1 rounded-full bg-red-500/30 hover:bg-red-500/50 text-red-100 shadow-sm transition-colors border border-red-500/30">Delete</button>
+                </div>
+              )}
             </div>
 
             {/* Card body */}
