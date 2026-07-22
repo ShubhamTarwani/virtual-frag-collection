@@ -1097,19 +1097,23 @@ export default function PerfumeShelf() {
               cursor: 'pointer',
             }} onClick={() => setSelectedPerfume(p)} data-fragrance-card={true}>
               {/* Bottle — fills most of the row height */}
-              <BottleImage
-                publicId={p.cloudinary_public_id || p.image_url || ''}
-                alt={p.name || 'Perfume'}
-                width={300}
-                height={300}
-                style={{
-                  height: '165px',
-                  width: '100%',
-                  objectFit: 'contain',
-                  objectPosition: 'center bottom',
-                  padding: '8px 12px 0',
-                }}
-              />
+              <div style={{
+                height: '165px',
+                width: '100%',
+                padding: '8px 12px 0',
+                display: 'flex',
+                alignItems: 'flex-end',
+                justifyContent: 'center',
+                overflow: 'hidden',
+              }}>
+                <BottleImage
+                  publicId={p.cloudinary_public_id || p.image_url || ''}
+                  alt={p.name || 'Perfume'}
+                  width={300}
+                  height={300}
+                  className="max-h-full w-auto object-contain object-bottom"
+                />
+              </div>
 
               {/* Edit/Delete overlay (keep this!) */}
               {user && (
