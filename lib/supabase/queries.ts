@@ -106,7 +106,7 @@ export async function getPublicFragrancesByUserId(userId: string) {
   const supabase = await getSupabase()
   const { data, error } = await supabase
     .from('perfumes')
-    .select('*')
+    .select('id, name, brand, category, concentration, image_url, cloudinary_public_id, shelf_row, occasion, notes, rating, longevity_hours, ideal_season, user_id, is_decant, decant_volume_ml, decant_source, decant_finished, visibility, created_at, updated_at')
     .eq('user_id', userId)
     .order('shelf_row', { ascending: true })
 

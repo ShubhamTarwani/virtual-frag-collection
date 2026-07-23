@@ -35,9 +35,10 @@ export type Perfume = {
   decant_volume_ml?: number | null
   decant_source?:    string | null
   decant_finished?:  boolean
+  custom_categories?: string[]
 }
 
-const filterModes = ['Type', 'Occasion', 'Smell', 'Notes'] as const
+const filterModes = ['Type', 'Custom', 'Occasion', 'Smell', 'Notes'] as const
 
 const designerBrands = new Set([
   'armani', 'calvin klein', 'ck', 'davidoff', 'dior', 'versace', 'paco rabanne', 'paco',
@@ -136,7 +137,20 @@ function getDerivedValueForMode(p: Perfume, mode: typeof filterModes[number]) {
   }
 }
 
-function buildDynamicOptions(perfumes: Perfume[], mode: typeof filterModes[number]): string[] {
+function buildDynamicOptions(perfumes: Perfume[], mode: typeof filterModes[number], emptyCustomCategories?: Set<string>): string[] {
+  if (mode === 'Custom') {
+    const customSet = new Set<string>()
+    perfumes.forEach(p => {
+      if (p.custom_categories && Array.isArray(p.custom_categories)) {
+        p.custom_categories.forEach(c => customSet.add(c))
+      }
+    })
+    if (emptyCustomCategories) {
+      emptyCustomCategories.forEach(c => customSet.add(c))
+    }
+    const uniqueCustom = Array.from(customSet).sort(Intl.Collator().compare)
+    return uniqueCustom.length > 0 ? ['All', ...uniqueCustom] : ['All']
+  }
   const values = perfumes.map(p => getDerivedValueForMode(p, mode)).filter(Boolean)
   const unique = [...new Set(values)]
   // Sort by the predefined sortOrder so chips appear in a consistent order
@@ -159,6 +173,9 @@ function getDerivedValue(p: Perfume, mode: typeof filterModes[number]) {
 
 function matchesFilter(p: Perfume, mode: typeof filterModes[number], value: string) {
   if (value === 'All') return true
+  if (mode === 'Custom') {
+    return !!p.custom_categories?.includes(value)
+  }
   const derivedValue = getDerivedValue(p, mode)
   return derivedValue === value || (mode === 'Notes' && (p.notes || '').toLowerCase().includes(value.toLowerCase()))
 }
@@ -400,8 +417,178 @@ export default function PerfumeShelf() {
     decant_volume_ml: null as number | null,
     decant_source: '',
     decant_finished: false,
+    custom_categories: '',
   })
 
+  const [showBulkManager, setShowBulkManager] = useState(false)
+  const [bulkSelectedIds, setBulkSelectedIds] = useState<Set<string>>(new Set())
+  const [initialBulkSelectedIds, setInitialBulkSelectedIds] = useState<Set<string>>(new Set())
+  const [bulkTypeFilter, setBulkTypeFilter] = useState('All')
+
+  const [emptyCustomCategories, setEmptyCustomCategories] = useState<Set<string>>(new Set())
+  const [showCreateShelfManager, setShowCreateShelfManager] = useState(false)
+  const [newShelfName, setNewShelfName] = useState('')
+  const [newShelfTypes, setNewShelfTypes] = useState<Set<string>>(new Set())
+
+  // Clean up empty custom categories if they are now in the DB
+  useEffect(() => {
+    let changed = false
+    const newEmpty = new Set(emptyCustomCategories)
+    const existing = new Set<string>()
+    perfumes.forEach(p => {
+      if (p.custom_categories) {
+        p.custom_categories.forEach(c => existing.add(c.toLowerCase()))
+      }
+    })
+    for (const ec of newEmpty) {
+      if (existing.has(ec.toLowerCase())) {
+        newEmpty.delete(ec)
+        changed = true
+      }
+    }
+    if (changed) {
+      setEmptyCustomCategories(newEmpty)
+    }
+  }, [perfumes, emptyCustomCategories])
+
+  const handleCreateShelf = async () => {
+    if (!newShelfName.trim() || !user) return
+
+    const trimmedName = newShelfName.trim()
+    const lowerName = trimmedName.toLowerCase()
+
+    // Check if it already exists in real categories
+    const existing = new Set<string>()
+    let actualNameToUse = trimmedName
+    perfumes.forEach(p => {
+      if (p.custom_categories) {
+        p.custom_categories.forEach(c => {
+          if (c.toLowerCase() === lowerName) {
+            actualNameToUse = c // use existing case
+          }
+          existing.add(c.toLowerCase())
+        })
+      }
+    })
+
+    // Also check empty categories for merging
+    for (const ec of emptyCustomCategories) {
+      if (ec.toLowerCase() === lowerName) {
+        actualNameToUse = ec
+        existing.add(ec.toLowerCase())
+      }
+    }
+
+    const updates: Promise<any>[] = []
+    
+    // Find all matching perfumes based on type
+    let matchedCount = 0
+    if (newShelfTypes.size > 0) {
+      perfumes.forEach(p => {
+        const pType = classifyPerfume(p)
+        if (newShelfTypes.has(pType)) {
+          matchedCount++
+          let cats = p.custom_categories || []
+          if (!cats.some(c => c.toLowerCase() === lowerName)) {
+            cats = [...cats, actualNameToUse]
+            updates.push(supabase.from('perfumes').update({ custom_categories: cats }).eq('id', p.id))
+          }
+        }
+      })
+    }
+    
+    console.log(`[handleCreateShelf] Total perfumes matched by type: ${matchedCount}`)
+    console.log(`[handleCreateShelf] Total perfumes needing update: ${updates.length}`)
+
+    try {
+      if (updates.length > 0) {
+        const results = await Promise.all(updates)
+        const errors = results.filter(r => r.error).map(r => r.error)
+        
+        if (errors.length > 0) {
+          console.error('[handleCreateShelf] Batch update errors:', errors)
+          alert('Failed to update some perfumes: ' + errors[0]?.message)
+          // Don't return early here if some succeeded, we still want to fetch
+        } else {
+          console.log('[handleCreateShelf] Batch update successful.')
+        }
+        
+        console.log('[handleCreateShelf] Fetching fresh perfumes from DB...')
+        await fetchPerfumes(user.id)
+        console.log('[handleCreateShelf] Fetch complete.')
+      } else if (!existing.has(lowerName)) {
+        // Create empty shelf if no matches and it didn't exist
+        const newEmpty = new Set(emptyCustomCategories)
+        newEmpty.add(actualNameToUse)
+        setEmptyCustomCategories(newEmpty)
+      }
+    } catch (err) {
+      console.error('[handleCreateShelf] Unexpected error:', err)
+      alert('An unexpected error occurred during batch update.')
+    }
+
+    setFilterMode('Custom')
+    setActiveFilter(actualNameToUse)
+    setShowCreateShelfManager(false)
+    setNewShelfName('')
+    setNewShelfTypes(new Set())
+  }
+
+  const openBulkManager = () => {
+    const initialSelected = new Set<string>()
+    perfumes.forEach(p => {
+      const cats = p.custom_categories || []
+      if (cats.map(c => c.toLowerCase()).includes(activeFilter.toLowerCase())) {
+        initialSelected.add(p.id)
+      }
+    })
+    setInitialBulkSelectedIds(initialSelected)
+    setBulkSelectedIds(new Set(initialSelected))
+    setBulkTypeFilter('All')
+    setShowBulkManager(true)
+  }
+
+  const saveBulkChanges = async () => {
+    if (!user) return
+    const updates: Promise<any>[] = []
+    
+    perfumes.forEach(p => {
+      const initiallySelected = initialBulkSelectedIds.has(p.id)
+      const nowSelected = bulkSelectedIds.has(p.id)
+      
+      if (initiallySelected !== nowSelected) {
+        let cats = p.custom_categories || []
+        if (nowSelected) {
+          cats = [...cats, activeFilter]
+        } else {
+          cats = cats.filter(c => c.toLowerCase() !== activeFilter.toLowerCase())
+        }
+        
+        // dedupe
+        const rawCats = cats.map(s => s.trim()).filter(Boolean)
+        const seen = new Set<string>()
+        const deduped: string[] = []
+        for (const c of rawCats) {
+          const lower = c.toLowerCase()
+          if (!seen.has(lower)) {
+            seen.add(lower)
+            deduped.push(c)
+          }
+        }
+        const custom_categories = deduped.length > 0 ? deduped : null
+        
+        updates.push(
+          supabase.from('perfumes').update({ custom_categories }).eq('id', p.id)
+        )
+      }
+    })
+    
+    if (updates.length > 0) {
+      await Promise.all(updates)
+      await fetchPerfumes(user.id)
+    }
+    setShowBulkManager(false)
+  }
 
   const handleAutofill = async (e: React.MouseEvent) => {
     e.preventDefault()
@@ -536,6 +723,7 @@ export default function PerfumeShelf() {
       decant_volume_ml: null,
       decant_source: '',
       decant_finished: false,
+      custom_categories: '',
     })
   }
 
@@ -564,6 +752,7 @@ export default function PerfumeShelf() {
       decant_volume_ml: perfume.decant_volume_ml ?? null,
       decant_source: perfume.decant_source || '',
       decant_finished: perfume.decant_finished || false,
+      custom_categories: perfume.custom_categories?.join(', ') || '',
     })
     setTimeout(() => {
       editFormRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
@@ -590,14 +779,33 @@ export default function PerfumeShelf() {
       decant_volume_ml: null,
       decant_source: '',
       decant_finished: false,
+      custom_categories: '',
     })
   }
 
   const savePerfume = async () => {
+    let custom_categories: string[] | null = null;
+    if (formValues.custom_categories) {
+      const rawCats = formValues.custom_categories.split(',').map(s => s.trim()).filter(Boolean);
+      const seen = new Set<string>();
+      const deduped: string[] = [];
+      for (const c of rawCats) {
+        const lower = c.toLowerCase();
+        if (!seen.has(lower)) {
+          seen.add(lower);
+          deduped.push(c);
+        }
+      }
+      if (deduped.length > 0) {
+        custom_categories = deduped;
+      }
+    }
+
     const payload: Record<string, unknown> = {
       name: formValues.name,
       brand: formValues.brand,
       category: formValues.category,
+      custom_categories,
       concentration: formValues.concentration,
       image_url: formValues.image_url,
       cloudinary_public_id: formValues.cloudinary_public_id,
@@ -689,7 +897,7 @@ export default function PerfumeShelf() {
     return [label, items] as [string, Perfume[]]
   })
 
-  const activeOptions = useMemo(() => buildDynamicOptions(perfumes, filterMode), [perfumes, filterMode])
+  const activeOptions = useMemo(() => buildDynamicOptions(perfumes, filterMode, emptyCustomCategories), [perfumes, filterMode, emptyCustomCategories])
 
   // Reset active filter if it no longer exists in the dynamic options
   useEffect(() => {
@@ -840,6 +1048,15 @@ export default function PerfumeShelf() {
                       <input
                         value={formValues.concentration}
                         onChange={(e) => setFormField('concentration', e.target.value)}
+                        className="mt-1 w-full rounded-2xl border border-border-light bg-surface px-3 py-2 text-sm outline-none focus:border-accent"
+                      />
+                    </label>
+                    <label className="text-sm text-foreground">
+                      Custom Categories (comma separated)
+                      <input
+                        value={formValues.custom_categories}
+                        onChange={(e) => setFormField('custom_categories', e.target.value)}
+                        placeholder="e.g. Summer Bests, Gym Scents"
                         className="mt-1 w-full rounded-2xl border border-border-light bg-surface px-3 py-2 text-sm outline-none focus:border-accent"
                       />
                     </label>
@@ -1040,25 +1257,43 @@ export default function PerfumeShelf() {
         </div>
       </div>
 
-      {activeOptions.length > 1 && (
-        <div className="filter-tabs mb-8 border-b border-border pb-4">
-          {activeOptions.map((option) => (
+      {(activeOptions.length > 1 || filterMode === 'Custom') && (
+        <div className="filter-tabs mb-8 border-b border-border pb-4 flex flex-wrap items-center gap-2">
+          <div className="flex items-center gap-2 overflow-x-auto flex-1">
+            {activeOptions.map((option) => (
+              <button
+                key={option}
+                onClick={() => setActiveFilter(option)}
+                className={`relative rounded-full px-4 py-2.5 text-xs font-medium transition-colors shrink-0 min-h-[44px] ${activeFilter === option ? 'text-accent font-semibold' : 'text-muted hover:text-foreground'}`}
+              >
+                {activeFilter === option && (
+                  <motion.div
+                    layoutId="activeFilterPill"
+                    className="absolute inset-0 bg-accent/10 border border-accent/30 rounded-full"
+                    initial={false}
+                    transition={{ type: "spring", stiffness: 400, damping: 30 }}
+                  />
+                )}
+                <span className="relative z-10">{option}</span>
+              </button>
+            ))}
+            {filterMode === 'Custom' && user && (
+              <button
+                onClick={() => setShowCreateShelfManager(true)}
+                className="relative rounded-full px-4 py-2.5 text-xs font-medium transition-colors shrink-0 min-h-[44px] border border-dashed border-border-light text-muted hover:border-accent hover:text-foreground flex items-center gap-1"
+              >
+                + Create Custom Shelf
+              </button>
+            )}
+          </div>
+          {filterMode === 'Custom' && activeFilter !== 'All' && user && (
             <button
-              key={option}
-              onClick={() => setActiveFilter(option)}
-              className={`relative rounded-full px-4 py-2.5 text-xs font-medium transition-colors shrink-0 min-h-[44px] ${activeFilter === option ? 'text-accent font-semibold' : 'text-muted hover:text-foreground'}`}
+              onClick={openBulkManager}
+              className="ml-auto rounded-full bg-accent/10 border border-accent/30 px-4 py-2 text-xs font-medium text-accent hover:bg-accent/20 transition-colors shrink-0 whitespace-nowrap min-h-[44px]"
             >
-              {activeFilter === option && (
-                <motion.div
-                  layoutId="activeFilterPill"
-                  className="absolute inset-0 bg-accent/10 border border-accent/30 rounded-full"
-                  initial={false}
-                  transition={{ type: "spring", stiffness: 400, damping: 30 }}
-                />
-              )}
-              <span className="relative z-10">{option}</span>
+              ✨ Manage perfumes
             </button>
-          ))}
+          )}
         </div>
       )}
 
@@ -1186,6 +1421,127 @@ export default function PerfumeShelf() {
 
       {/* Detail Drawer */}
       <DetailDrawer perfume={selectedPerfume} onClose={() => setSelectedPerfume(null)} />
+
+      {/* Bulk Manager Modal */}
+      {showBulkManager && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm p-4">
+          <div className="w-full max-w-3xl max-h-[90vh] flex flex-col bg-surface border border-border shadow-2xl rounded-2xl overflow-hidden">
+            <div className="flex items-center justify-between p-4 sm:p-6 border-b border-border">
+              <div>
+                <h2 className="text-lg font-semibold text-foreground">Manage: {activeFilter}</h2>
+                <p className="text-sm text-muted">Select perfumes to add to this custom category.</p>
+              </div>
+              <button onClick={() => setShowBulkManager(false)} className="text-muted hover:text-foreground">
+                <svg width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M6 18L18 6M6 6l12 12" /></svg>
+              </button>
+            </div>
+            
+            <div className="p-4 border-b border-border bg-surface-hover/50">
+              <div className="flex items-center gap-3 overflow-x-auto pb-2">
+                <span className="text-sm font-medium text-muted whitespace-nowrap">Filter by Type:</span>
+                {['All', 'Niche', 'Designer', 'Middle Eastern', 'Mass Produced', 'Clones', 'Liquid Deodorants', 'Other'].map(type => (
+                  <button
+                    key={type}
+                    onClick={() => setBulkTypeFilter(type)}
+                    className={`px-3 py-1.5 text-xs font-medium rounded-full whitespace-nowrap transition-colors border ${bulkTypeFilter === type ? 'bg-accent border-accent text-background' : 'bg-surface border-border-light text-muted hover:border-accent hover:text-foreground'}`}
+                  >
+                    {type}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-4 sm:p-6 grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {perfumes
+                .filter(p => bulkTypeFilter === 'All' || classifyPerfume(p) === bulkTypeFilter)
+                .map(p => {
+                  const isSelected = bulkSelectedIds.has(p.id)
+                  return (
+                    <label key={p.id} className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-colors ${isSelected ? 'border-accent bg-accent/5' : 'border-border-light bg-surface hover:border-accent/50'}`}>
+                      <input 
+                        type="checkbox" 
+                        checked={isSelected}
+                        onChange={(e) => {
+                          const newSet = new Set(bulkSelectedIds)
+                          if (e.target.checked) newSet.add(p.id)
+                          else newSet.delete(p.id)
+                          setBulkSelectedIds(newSet)
+                        }}
+                        className="w-5 h-5 rounded text-accent focus:ring-accent bg-background border-border"
+                      />
+                      <div className="flex items-center gap-3 overflow-hidden">
+                        <div className="w-10 h-10 shrink-0 bg-surface-hover rounded flex items-center justify-center p-1">
+                          <BottleImage publicId={p.cloudinary_public_id || p.image_url || ''} alt={p.name || ''} width={40} height={40} className="object-contain max-h-full" />
+                        </div>
+                        <div className="overflow-hidden">
+                          <div className="text-sm font-semibold text-foreground truncate">{p.name || 'Unknown'}</div>
+                          <div className="text-xs text-muted truncate">{p.brand || 'Unknown'}</div>
+                        </div>
+                      </div>
+                    </label>
+                  )
+              })}
+            </div>
+
+            <div className="p-4 sm:p-6 border-t border-border flex items-center justify-end gap-3 bg-surface-hover/30">
+              <button onClick={() => setShowBulkManager(false)} className="px-5 py-2.5 text-sm font-medium rounded-xl border border-border-light hover:bg-surface-hover transition-colors">Cancel</button>
+              <button onClick={saveBulkChanges} className="px-5 py-2.5 text-sm font-medium rounded-xl bg-accent text-background hover:bg-surface-hover transition-colors">Save changes</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Create Custom Shelf Modal */}
+      {showCreateShelfManager && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm p-4">
+          <div className="w-full max-w-md flex flex-col bg-surface border border-border shadow-2xl rounded-2xl overflow-hidden">
+            <div className="flex items-center justify-between p-4 sm:p-6 border-b border-border">
+              <h2 className="text-lg font-semibold text-foreground">Create Custom Shelf</h2>
+              <button onClick={() => setShowCreateShelfManager(false)} className="text-muted hover:text-foreground">
+                <svg width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M6 18L18 6M6 6l12 12" /></svg>
+              </button>
+            </div>
+            
+            <div className="p-4 sm:p-6 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-foreground mb-1">Shelf Name</label>
+                <input 
+                  type="text"
+                  placeholder="e.g. Signature Niche"
+                  value={newShelfName}
+                  onChange={e => setNewShelfName(e.target.value)}
+                  className="w-full rounded-xl border border-border-light bg-surface px-4 py-2 text-sm outline-none focus:border-accent"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-foreground mb-2">Auto-populate by Type (Optional)</label>
+                <div className="flex flex-wrap gap-2">
+                  {['Niche', 'Designer', 'Middle Eastern', 'Mass Produced', 'Clones', 'Liquid Deodorants', 'Other'].map(type => (
+                    <button
+                      key={type}
+                      onClick={() => {
+                        const newSet = new Set(newShelfTypes)
+                        if (newSet.has(type)) newSet.delete(type)
+                        else newSet.add(type)
+                        setNewShelfTypes(newSet)
+                      }}
+                      className={`px-3 py-1.5 text-xs font-medium rounded-full transition-colors border ${newShelfTypes.has(type) ? 'bg-accent border-accent text-background' : 'bg-surface border-border-light text-muted hover:border-accent hover:text-foreground'}`}
+                    >
+                      {type}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <div className="p-4 sm:p-6 border-t border-border flex items-center justify-end gap-3 bg-surface-hover/30">
+              <button onClick={() => setShowCreateShelfManager(false)} className="px-5 py-2.5 text-sm font-medium rounded-xl border border-border-light hover:bg-surface-hover transition-colors">Cancel</button>
+              <button onClick={handleCreateShelf} className="px-5 py-2.5 text-sm font-medium rounded-xl bg-accent text-background hover:bg-surface-hover transition-colors">Save shelf</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
