@@ -867,7 +867,20 @@ export default function PerfumeShelf() {
   const grouped = new Map<string, Perfume[]>()
   if (autoSort) {
     filtered.forEach((p) => {
-      const groupKey = getDerivedValue(p, filterMode) || 'Other'
+      let groupKey: string
+      if (filterMode === 'Custom') {
+        // When a specific custom category is selected, group under that name
+        // When 'All' is selected, group each perfume by its first custom category or 'Uncategorized'
+        if (activeFilter !== 'All') {
+          groupKey = activeFilter
+        } else {
+          groupKey = (p.custom_categories && p.custom_categories.length > 0)
+            ? p.custom_categories[0]
+            : 'Uncategorized'
+        }
+      } else {
+        groupKey = getDerivedValue(p, filterMode) || 'Other'
+      }
       const arr = grouped.get(groupKey) || []
       arr.push(p)
       grouped.set(groupKey, arr)
