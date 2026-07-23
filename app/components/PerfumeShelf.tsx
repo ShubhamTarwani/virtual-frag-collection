@@ -479,7 +479,7 @@ export default function PerfumeShelf() {
       }
     }
 
-    const updates: Promise<any>[] = []
+    const updates: any[] = []
     
     // Find all matching perfumes based on type
     let matchedCount = 0
