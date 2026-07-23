@@ -106,7 +106,7 @@ cp .env.example .env.local
 Ensure the following variables are populated:
 ```env
 NEXT_PUBLIC_SUPABASE_URL=your-supabase-url
-NEXT_PUBLIC_SUPABASE_ANON_KEY=your-supabase-anon-key
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=your-supabase-publishable-key
 SUPABASE_SERVICE_ROLE_KEY=your-supabase-service-role-key
 NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME=your-cloudinary-name
 NEXT_PUBLIC_CLOUDINARY_API_KEY=your-cloudinary-api-key
