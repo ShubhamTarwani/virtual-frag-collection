@@ -550,7 +550,7 @@ export default function PerfumeShelf() {
 
   const saveBulkChanges = async () => {
     if (!user) return
-    const updates: Promise<any>[] = []
+    const updates: any[] = []
     
     perfumes.forEach(p => {
       const initiallySelected = initialBulkSelectedIds.has(p.id)
