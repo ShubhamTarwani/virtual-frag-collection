@@ -151,10 +151,10 @@ function buildDynamicOptions(perfumes: Perfume[], mode: typeof filterModes[numbe
     const uniqueCustom = Array.from(customSet).sort(Intl.Collator().compare)
     return uniqueCustom.length > 0 ? ['All', ...uniqueCustom] : ['All']
   }
-  const values = perfumes.map(p => getDerivedValueForMode(p, mode)).filter(Boolean)
+  const values = perfumes.map(p => getDerivedValueForMode(p, mode)).filter((v): v is string => Boolean(v))
   const unique = [...new Set(values)]
   // Sort by the predefined sortOrder so chips appear in a consistent order
-  unique.sort((a, b) => (sortOrder[a] ?? 50) - (sortOrder[b] ?? 50))
+  unique.sort((a, b) => (sortOrder[a as keyof typeof sortOrder] ?? 50) - (sortOrder[b as keyof typeof sortOrder] ?? 50))
   return unique.length > 0 ? ['All', ...unique] : ['All']
 }
 
